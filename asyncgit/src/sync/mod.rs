@@ -51,11 +51,11 @@ pub use commit_details::{
 };
 pub use commit_files::get_commit_files;
 pub use commit_filter::{
-	diff_contains_file, filter_commit_by_search, LogFilterSearch,
-	LogFilterSearchOptions, SearchFields, SearchOptions,
-	SharedCommitFilterFn,
+	filter_commit_by_search, LogFilterSearch, LogFilterSearchOptions,
+	SearchFields, SearchOptions, SharedCommitFilterFn,
 };
 pub use commit_revert::{commit_revert, revert_commit, revert_head};
+pub(crate) use commits_info::get_commit_info_repo;
 pub use commits_info::{
 	get_commit_info, get_commits_info, CommitId, CommitInfo,
 };
@@ -123,8 +123,106 @@ pub mod tests {
 	};
 	use crate::error::Result;
 	use git2::Repository;
-	use std::{path::Path, process::Command};
+	use std::{cell::RefCell, path::Path, process::Command};
 	use tempfile::TempDir;
+
+	/// Calling `set_search_path` with an empty directory makes sure that there
+	/// is no git config interfering with our tests (for example user-local
+	/// `.gitconfig`).
+	#[allow(unsafe_code)]
+	fn sandbox_config_files() {
+		use git2::{opts::set_search_path, ConfigLevel};
+		use std::sync::Once;
+
+		static INIT: Once = Once::new();
+
+		// Adapted from https://github.com/rust-lang/cargo/pull/9035
+		INIT.call_once(|| unsafe {
+			let temp_dir = TempDir::new().unwrap();
+			let path = temp_dir.path();
+
+			set_search_path(ConfigLevel::System, path).unwrap();
+			set_search_path(ConfigLevel::Global, path).unwrap();
+			set_search_path(ConfigLevel::XDG, path).unwrap();
+			set_search_path(ConfigLevel::ProgramData, path).unwrap();
+		});
+	}
+
+	/// write, stage and commit a file
+	pub fn write_commit_file(
+		repo: &Repository,
+		file: &str,
+		content: &str,
+		commit_name: &str,
+	) -> CommitId {
+		repo_write_file(repo, file, content).unwrap();
+
+		stage_add_file(
+			&repo.workdir().unwrap().to_str().unwrap().into(),
+			Path::new(file),
+		)
+		.unwrap();
+
+		commit(
+			&repo.workdir().unwrap().to_str().unwrap().into(),
+			commit_name,
+		)
+		.unwrap()
+	}
+
+	/// write, stage and commit a file giving the commit a specific timestamp
+	pub fn write_commit_file_at(
+		repo: &Repository,
+		file: &str,
+		content: &str,
+		commit_name: &str,
+		time: git2::Time,
+	) -> CommitId {
+		repo_write_file(repo, file, content).unwrap();
+
+		let path: &RepoPath =
+			&repo.workdir().unwrap().to_str().unwrap().into();
+
+		stage_add_file(path, Path::new(file)).unwrap();
+
+		commit_at(path, commit_name, time)
+	}
+
+	fn commit_at(
+		repo_path: &RepoPath,
+		msg: &str,
+		time: git2::Time,
+	) -> CommitId {
+		let repo = repo(repo_path).unwrap();
+
+		let signature =
+			git2::Signature::new("name", "email", &time).unwrap();
+		let mut index = repo.index().unwrap();
+		let tree_id = index.write_tree().unwrap();
+		let tree = repo.find_tree(tree_id).unwrap();
+
+		let parents = if let Ok(id) = get_head_repo(&repo) {
+			vec![repo.find_commit(id.into()).unwrap()]
+		} else {
+			Vec::new()
+		};
+
+		let parents = parents.iter().collect::<Vec<_>>();
+
+		let commit = repo
+			.commit(
+				Some("HEAD"),
+				&signature,
+				&signature,
+				msg,
+				&tree,
+				parents.as_slice(),
+			)
+			.unwrap()
+			.into();
+
+		commit
+	}
 
 	///
 	pub fn repo_init_empty() -> Result<(TempDir, Repository)> {
@@ -252,13 +350,21 @@ pub mod tests {
 		r: &Repository,
 		max_count: usize,
 	) -> Vec<CommitId> {
-		let mut commit_ids = Vec::<CommitId>::new();
-		LogWalker::new(r, max_count)
+		let commit_ids = RefCell::new(Vec::<CommitId>::new());
+		LogWalker::new(r, Some(max_count))
 			.unwrap()
-			.read(&mut commit_ids)
+			.read(Some(&commit_ids))
 			.unwrap();
 
-		commit_ids
+		commit_ids.take()
+	}
+
+	///
+	pub fn rename_file(repo: &Repository, old: &str, new: &str) {
+		let dir = repo.workdir().unwrap();
+		let old = dir.join(old);
+		let new = dir.join(new);
+		std::fs::rename(old, new).unwrap();
 	}
 
 	/// Same as `repo_init`, but the repo is a bare repo (--bare)

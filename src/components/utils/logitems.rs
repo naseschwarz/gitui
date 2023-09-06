@@ -61,7 +61,25 @@ impl From<CommitInfo> for LogEntry {
 
 impl LogEntry {
 	pub fn time_to_string(&self, now: DateTime<Local>) -> String {
-		let delta = now - self.time;
+		Self::time_as_string(self.time, now)
+	}
+
+	pub fn timestamp_to_datetime(
+		time: i64,
+	) -> Option<DateTime<Local>> {
+		let date = NaiveDateTime::from_timestamp_opt(time, 0)?;
+
+		Some(DateTime::<Local>::from(
+			DateTime::<Utc>::from_naive_utc_and_offset(date, Utc),
+		))
+	}
+
+	///
+	pub fn time_as_string(
+		time: DateTime<Local>,
+		now: DateTime<Local>,
+	) -> String {
+		let delta = now - time;
 		if delta < Duration::try_minutes(30).unwrap_or_default() {
 			let delta_str = if delta
 				< Duration::try_minutes(1).unwrap_or_default()
@@ -71,10 +89,10 @@ impl LogEntry {
 				format!("{:0>2}m ago", delta.num_minutes())
 			};
 			format!("{delta_str: <10}")
-		} else if self.time.date_naive() == now.date_naive() {
-			self.time.format("%T  ").to_string()
+		} else if time.date_naive() == now.date_naive() {
+			time.format("%T  ").to_string()
 		} else {
-			self.time.format("%Y-%m-%d").to_string()
+			time.format("%Y-%m-%d").to_string()
 		}
 	}
 }
