@@ -243,6 +243,25 @@ pub fn get_branch_remote(
 	}
 }
 
+/// Retrieve the upstream merge of a local `branch`,
+/// configured in "branch.*.merge"
+/// 
+/// For details check git2 `branch_upstream_merge`
+pub fn get_branch_upstream_merge(
+	repo_path: &RepoPath,
+	branch: &str,
+) -> Result<Option<String>> {
+	let repo = repo(repo_path)?;
+	let branch = repo.find_branch(branch, BranchType::Local)?;
+	let reference = bytes2string(branch.get().name_bytes())?;
+	let remote_name = repo.branch_upstream_merge(&reference).ok();
+	if let Some(remote_name) = remote_name {
+		Ok(Some(bytes2string(remote_name.as_ref())?))
+	} else {
+		Ok(None)
+	}
+}
+
 /// returns whether the pull merge strategy is set to rebase
 pub fn config_is_pull_rebase(repo_path: &RepoPath) -> Result<bool> {
 	let repo = repo(repo_path)?;
