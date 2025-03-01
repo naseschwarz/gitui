@@ -3,7 +3,12 @@ use crate::{
 	progress::ProgressPercent,
 	sync::{
 		branch::branch_set_upstream_after_push,
+		config::{
+			push_default_strategy_config_repo,
+			PushDefaultStrategyConfig,
+		},
 		cred::BasicAuthCredential,
+		get_branch_upstream_merge,
 		remotes::{proxy_auto, Callbacks},
 		repository::repo,
 		CommitId, RepoPath,
@@ -145,6 +150,9 @@ pub fn push_raw(
 	let repo = repo(repo_path)?;
 	let mut remote = repo.find_remote(remote)?;
 
+	let push_default_strategy =
+		push_default_strategy_config_repo(&repo)?;
+
 	let mut options = PushOptions::new();
 	options.proxy_options(proxy_auto());
 
@@ -163,9 +171,23 @@ pub fn push_raw(
 		PushType::Tag => "tags",
 	};
 
-	let branch_name =
+	let mut push_ref =
 		format!("{branch_modifier}refs/{ref_type}/{branch}");
-	remote.push(&[branch_name.as_str()], Some(&mut options))?;
+
+	if !delete
+		&& matches!(
+			push_default_strategy,
+			PushDefaultStrategyConfig::Upstream
+		) {
+		if let Ok(Some(branch_upstream_merge)) =
+			get_branch_upstream_merge(repo_path, branch)
+		{
+			push_ref.push_str(&format!(":{branch_upstream_merge}"));
+		}
+	}
+
+	log::debug!("push to: {push_ref}");
+	remote.push(&[push_ref], Some(&mut options))?;
 
 	if let Some((reference, msg)) =
 		callbacks.get_stats()?.push_rejected_msg
