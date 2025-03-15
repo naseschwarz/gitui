@@ -114,7 +114,7 @@ impl Component for MsgPopup {
 		_force_all: bool,
 	) -> CommandBlocking {
 		out.push(CommandInfo::new(
-			strings::commands::close_msg(&self.key_config),
+			strings::commands::close_popup(&self.key_config),
 			true,
 			self.visible,
 		));
