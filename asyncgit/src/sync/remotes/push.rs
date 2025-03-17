@@ -97,7 +97,7 @@ impl AsyncProgress for ProgressNotification {
 }
 
 ///
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PushType {
 	///
 	Branch,
@@ -166,19 +166,19 @@ pub fn push_raw(
 		(true, false) => "+",
 		(false, false) => "",
 	};
-	let ref_type = match ref_type {
+	let git_ref_type = match ref_type {
 		PushType::Branch => "heads",
 		PushType::Tag => "tags",
 	};
 
 	let mut push_ref =
-		format!("{branch_modifier}refs/{ref_type}/{branch}");
+		format!("{branch_modifier}refs/{git_ref_type}/{branch}");
 
 	if !delete
-		&& matches!(
-			push_default_strategy,
-			PushDefaultStrategyConfig::Upstream
-		) {
+		&& ref_type == PushType::Branch
+		&& push_default_strategy
+			== PushDefaultStrategyConfig::Upstream
+	{
 		if let Ok(Some(branch_upstream_merge)) =
 			get_branch_upstream_merge(repo_path, branch)
 		{
