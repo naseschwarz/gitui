@@ -2,7 +2,7 @@ use asyncgit::{
 	asyncjob::{AsyncJob, RunParams},
 	ProgressPercent,
 };
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use ratatui::text::{Line, Span};
 use scopetime::scope_time;
 use std::{
@@ -14,7 +14,7 @@ use std::{
 use syntect::{
 	highlighting::{
 		FontStyle, HighlightState, Highlighter,
-		RangedHighlightIterator, Style, ThemeSet,
+		RangedHighlightIterator, Style, Theme, ThemeSet,
 	},
 	parsing::{ParseState, ScopeStack, SyntaxSet},
 };
@@ -36,6 +36,7 @@ pub struct SyntaxText {
 static SYNTAX_SET: Lazy<SyntaxSet> =
 	Lazy::new(two_face::syntax::extra_no_newlines);
 static THEME_SET: Lazy<ThemeSet> = Lazy::new(ThemeSet::load_defaults);
+static THEME: OnceCell<Theme> = OnceCell::new();
 
 pub struct AsyncProgressBuffer {
 	current: usize,
@@ -89,13 +90,31 @@ impl SyntaxText {
 			ParseState::new(syntax)
 		};
 
-		let theme =
-			THEME_SET.themes.get(syntax).unwrap_or_else(|| {
-				log::error!("The syntax theme:\"{}\" cannot be found. Using default theme:\"{}\" instead.", syntax, DEFAULT_SYNTAX_THEME);
-				&THEME_SET.themes[DEFAULT_SYNTAX_THEME]
-			});
-		let highlighter = Highlighter::new(theme);
+		let theme = THEME.get_or_try_init(|| -> Result<Theme, asyncgit::Error> {
+			let theme_path = crate::args::get_app_config_path()
+				.map_err(|e| asyncgit::Error::Generic(e.to_string()))?
+				.join(syntax);
+		    let loaded_theme = ThemeSet::get_theme(&theme_path);
 
+		    match loaded_theme {
+			    Ok(t) => Ok(t),
+			    Err(e) => {
+				    log::info!(
+					    "failed to load the theme from '{}': {e}, trying from the set of default themes",
+					    theme_path.display()
+				    );
+
+				    let t = THEME_SET.themes.get(syntax).unwrap_or_else(|| {
+				        log::error!("The syntax theme '{syntax}' cannot be found. Using default theme ('{DEFAULT_SYNTAX_THEME}') instead.");
+				        &THEME_SET.themes[DEFAULT_SYNTAX_THEME]
+			        });
+
+                    Ok(t.clone())
+                }
+			}
+		})?;
+
+		let highlighter = Highlighter::new(theme);
 		let mut syntax_lines: Vec<SyntaxLine> = Vec::new();
 
 		let mut highlight_state =
