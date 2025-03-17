@@ -13,7 +13,7 @@ categories = ["development-tools"]
 keywords = ["git"]
 
 [dependencies]
-git2 = ">=0.17"
+git2 = { git = "https://github.com/rust-lang/git2-rs.git", rev="d1ae3b6c2d1200e7d82468af447fa66259225ecf" }
 log = "0.4"
 shellexpand = "3.1"
 thiserror = "2.0"
