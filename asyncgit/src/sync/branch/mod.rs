@@ -692,6 +692,49 @@ mod tests_branches {
 
 		assert!(get_branch_remote(repo_path, "foo").is_err());
 	}
+
+	#[test]
+	fn test_branch_no_upstream_merge_config() {
+		let (_r, repo) = repo_init().unwrap();
+		let root = repo.path().parent().unwrap();
+		let repo_path: &RepoPath =
+			&root.as_os_str().to_str().unwrap().into();
+
+		let upstream_merge_res =
+			get_branch_upstream_merge(&repo_path, "master");
+		assert!(
+			upstream_merge_res.is_ok_and(|v| v.as_ref().is_none())
+		);
+	}
+
+	#[test]
+	fn test_branch_with_upstream_merge_config() {
+		let (_r, repo) = repo_init().unwrap();
+		let root = repo.path().parent().unwrap();
+		let repo_path: &RepoPath =
+			&root.as_os_str().to_str().unwrap().into();
+
+		let branch_name = "master";
+		let upstrem_merge = "refs/heads/master";
+
+		let mut config = repo.config().unwrap();
+		config
+			.set_str(
+				&format!("branch.{branch_name}.merge"),
+				&upstrem_merge,
+			)
+			.expect("fail set branch merge config");
+
+		let upstream_merge_res =
+			get_branch_upstream_merge(&repo_path, &branch_name);
+		assert!(upstream_merge_res
+			.as_ref()
+			.is_ok_and(|v| v.as_ref().is_some()));
+		assert_eq!(
+			&upstream_merge_res.unwrap().unwrap(),
+			upstrem_merge
+		);
+	}
 }
 
 #[cfg(test)]
