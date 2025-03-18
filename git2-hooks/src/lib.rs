@@ -231,13 +231,13 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
+	use super::test_utils_priv::*;
 	use super::*;
 	use git2_testing::{
 		create_hook_in_path, repo_init, repo_init_bare,
 	};
 	use pretty_assertions::assert_eq;
 	use tempfile::TempDir;
-	use super::test_utils_priv::*;
 
 	#[test]
 	fn test_smoke() {
