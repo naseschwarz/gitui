@@ -98,7 +98,7 @@ pub fn create_hook(
 	path
 }
 
-fn create_hook_in_path(path: &Path, hook_script: &[u8]) {
+pub fn create_hook_in_path(path: &Path, hook_script: &[u8]) {
 	File::create(path).unwrap().write_all(hook_script).unwrap();
 
 	#[cfg(unix)]

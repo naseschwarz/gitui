@@ -78,7 +78,7 @@ mod tests {
 	use crate::sync::tests::repo_init;
 
 	#[test]
-	fn test_post_commit_hook_reject_in_subfolder() {
+	fn test_post_commit_hook_reject_in_hooks_folder() {
 		let (_td, repo) = repo_init().unwrap();
 		let root = repo.path().parent().unwrap();
 
@@ -93,11 +93,11 @@ mod tests {
 			hook,
 		);
 
-		let subfolder = root.join("foo/");
-		std::fs::create_dir_all(&subfolder).unwrap();
+		let hooks_folder = root.join("foo/");
+		std::fs::create_dir_all(&hooks_folder).unwrap();
 
 		let res =
-			hooks_post_commit(&subfolder.to_str().unwrap().into())
+			hooks_post_commit(&hooks_folder.to_str().unwrap().into())
 				.unwrap();
 
 		assert_eq!(
@@ -141,7 +141,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_hooks_commit_msg_reject_in_subfolder() {
+	fn test_hooks_commit_msg_reject_in_hooks_folder() {
 		let (_td, repo) = repo_init().unwrap();
 		let root = repo.path().parent().unwrap();
 
@@ -157,16 +157,51 @@ mod tests {
 			hook,
 		);
 
-		let subfolder = root.join("foo/");
-		std::fs::create_dir_all(&subfolder).unwrap();
+		let hooks_folder = root.join("foo/");
+		std::fs::create_dir_all(&hooks_folder).unwrap();
 
 		let mut msg = String::from("test");
 		let res = hooks_commit_msg(
-			&subfolder.to_str().unwrap().into(),
+			&hooks_folder.to_str().unwrap().into(),
 			&mut msg,
 		)
 		.unwrap();
 
+		assert_eq!(
+			res,
+			HookResult::NotOk(String::from("rejected\n"))
+		);
+
+		assert_eq!(msg, String::from("msg\n"));
+	}
+
+	#[test]
+	fn test_hooks_commit_msg_reject_in_hooks_folder_githooks_moved() {
+		let (_td, repo) = repo_init().unwrap();
+		let root = repo.path().parent().unwrap();
+		let mut config = repo.config().unwrap();
+
+		const HOOKS_DIR: &'static str = "my_hooks";
+		config.set_str("core.hooksPath", HOOKS_DIR).unwrap();
+
+		let hook = b"#!/bin/sh
+	echo 'msg' > $1
+	echo 'rejected'
+	exit 1
+	        ";
+		let hooks_folder = root.join(HOOKS_DIR);
+		std::fs::create_dir_all(&hooks_folder).unwrap();
+		git2_hooks::create_hook_in_path(
+			&hooks_folder.join("commit-msg"),
+			hook,
+		);
+
+		let mut msg = String::from("test");
+		let res = hooks_commit_msg(
+			&hooks_folder.to_str().unwrap().into(),
+			&mut msg,
+		)
+		.unwrap();
 		assert_eq!(
 			res,
 			HookResult::NotOk(String::from("rejected\n"))
