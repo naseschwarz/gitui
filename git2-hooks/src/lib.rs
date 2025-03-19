@@ -97,21 +97,6 @@ pub fn create_hook(
 
 	path
 }
-
-fn create_hook_in_path(path: &Path, hook_script: &[u8]) {
-	File::create(path).unwrap().write_all(hook_script).unwrap();
-
-	#[cfg(unix)]
-	{
-		std::process::Command::new("chmod")
-			.arg("+x")
-			.arg(path)
-			// .current_dir(path)
-			.output()
-			.unwrap();
-	}
-}
-
 /// Git hook: `commit_msg`
 ///
 /// This hook is documented here <https://git-scm.com/docs/githooks#_commit_msg>.
