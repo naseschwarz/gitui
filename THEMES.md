@@ -34,6 +34,10 @@ Notes:
 * valid colors can be found in ratatui's [Color](https://docs.rs/ratatui/latest/ratatui/style/enum.Color.html) struct.
 * all customizable theme elements can be found in [`style.rs` in the `impl Default for Theme` block](https://github.com/gitui-org/gitui/blob/master/src/ui/style.rs#L305)
 
+## Preset Themes
+
+You can find preset themes by Catppuccin [here](https://github.com/catppuccin/gitui.git).
+
 ## Syntax Highlighting
 
 The syntax highlighting theme can be defined using the element `syntax`. Both [default themes of the syntect library are supported](https://github.com/trishume/syntect/blob/7fe13c0fd53cdfa0f9fea1aa14c5ba37f81d8b71/src/dumps.rs#L215) and custom themes are supported.
@@ -71,5 +75,3 @@ Note that if you want to turn it off, you should use a blank string:
     line_break: Some(""),
 )
 ```
-## Preset Themes:
-You can find preset themes by Catppuccin [here](https://github.com/catppuccin/gitui.git)
