@@ -40,7 +40,7 @@ You can find preset themes by Catppuccin [here](https://github.com/catppuccin/gi
 
 ## Syntax Highlighting
 
-The syntax highlighting theme can be defined using the element `syntax`. Both [default themes of the syntect library are supported](https://github.com/trishume/syntect/blob/7fe13c0fd53cdfa0f9fea1aa14c5ba37f81d8b71/src/dumps.rs#L215) and custom themes are supported.
+The syntax highlighting theme can be defined using the element `syntax`. Both [default themes of the syntect library](https://github.com/trishume/syntect/blob/7fe13c0fd53cdfa0f9fea1aa14c5ba37f81d8b71/src/dumps.rs#L215) and custom themes are supported.
 
 Example syntax theme:
 ```ron
