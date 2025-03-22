@@ -56,7 +56,7 @@ Custom themes are located in the [configuration directory](#configuration), are 
 )
 ```
 
-[filmgirl/TextMate-Themes](https://github.com/filmgirl/TextMate-Themes) offers many [beautiful](https://inkdeep.github.io/TextMate-Themes) TextMate themes from which to choose.
+[filmgirl/TextMate-Themes](https://github.com/filmgirl/TextMate-Themes) offers many [beautiful](https://inkdeep.github.io/TextMate-Themes) TextMate themes to choose from.
 
 ## Customizing line breaks
 
