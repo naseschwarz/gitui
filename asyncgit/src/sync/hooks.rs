@@ -97,7 +97,7 @@ mod tests {
 	#[test]
 	fn test_post_commit_hook_reject_in_subfolder() {
 		let (_td, repo) = repo_init().unwrap();
-		let root = repo.path().parent().unwrap();
+		let root = repo.workdir().unwrap();
 
 		let hook = b"#!/bin/sh
 	echo 'rejected'
@@ -130,7 +130,7 @@ mod tests {
 	#[cfg(unix)]
 	fn test_pre_commit_workdir() {
 		let (_td, repo) = repo_init().unwrap();
-		let root = repo.path().parent().unwrap();
+		let root = repo.workdir().unwrap();
 		let repo_path: &RepoPath =
 			&root.as_os_str().to_str().unwrap().into();
 		let workdir =
@@ -160,7 +160,7 @@ mod tests {
 	#[test]
 	fn test_hooks_commit_msg_reject_in_subfolder() {
 		let (_td, repo) = repo_init().unwrap();
-		let root = repo.path().parent().unwrap();
+		let root = repo.workdir().unwrap();
 
 		let hook = b"#!/bin/sh
 	echo 'msg' > $1
@@ -196,7 +196,7 @@ mod tests {
 	fn test_hooks_commit_msg_reject_in_hooks_folder_githooks_moved_absolute(
 	) {
 		let (_td, repo) = repo_init().unwrap();
-		let root = repo.path().parent().unwrap();
+		let root = repo.workdir().unwrap();
 		let mut config = repo.config().unwrap();
 
 		const HOOKS_DIR: &'static str = "my_hooks";
