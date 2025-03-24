@@ -202,7 +202,7 @@ mod tests {
 	#[test]
 	fn test_hooks_commit_msg_reject_in_hooks_folder_githooks_moved_absolute(
 	) {
-		let (_td, repo) = repo_init().unwrap();
+		let (_td, repo) = repo_init_with_prefix("bla '").unwrap();
 		let root = repo.workdir().unwrap();
 		let mut config = repo.config().unwrap();
 
