@@ -2,6 +2,7 @@
 use super::{CommitId, SharedCommitFilterFn};
 use crate::error::Result;
 use git2::{Commit, Oid, Repository};
+use gix::revision::Walk;
 use std::{
 	cmp::Ordering,
 	collections::{BinaryHeap, HashSet},
@@ -9,21 +10,21 @@ use std::{
 
 struct TimeOrderedCommit<'a>(Commit<'a>);
 
-impl<'a> Eq for TimeOrderedCommit<'a> {}
+impl Eq for TimeOrderedCommit<'_> {}
 
-impl<'a> PartialEq for TimeOrderedCommit<'a> {
+impl PartialEq for TimeOrderedCommit<'_> {
 	fn eq(&self, other: &Self) -> bool {
 		self.0.time().eq(&other.0.time())
 	}
 }
 
-impl<'a> PartialOrd for TimeOrderedCommit<'a> {
+impl PartialOrd for TimeOrderedCommit<'_> {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(self.cmp(other))
 	}
 }
 
-impl<'a> Ord for TimeOrderedCommit<'a> {
+impl Ord for TimeOrderedCommit<'_> {
 	fn cmp(&self, other: &Self) -> Ordering {
 		self.0.time().cmp(&other.0.time())
 	}
@@ -101,10 +102,81 @@ impl<'a> LogWalker<'a> {
 
 	//
 	fn visit(&mut self, c: Commit<'a>) {
-		if !self.visited.contains(&c.id()) {
-			self.visited.insert(c.id());
+		if self.visited.insert(c.id()) {
 			self.commits.push(TimeOrderedCommit(c));
 		}
+	}
+}
+
+/// This is separate from `LogWalker` because filtering currently (June 2024) works through
+/// `SharedCommitFilterFn`.
+///
+/// `SharedCommitFilterFn` requires access to a `git2::repo::Repository` because, under the hood,
+/// it calls into functions that work with a `git2::repo::Repository`. It seems unwise to open a
+/// repo both through `gix::discover` and `Repository::open_ext` at the same time, so there is a
+/// separate struct that works with `gix::Repository` only.
+///
+/// A more long-term option is to refactor filtering to work with a `gix::Repository` and to remove
+/// `LogWalker` once this is done, but this is a larger effort.
+pub struct LogWalkerWithoutFilter<'a> {
+	walk: Walk<'a>,
+	limit: usize,
+	visited: usize,
+}
+
+impl<'a> LogWalkerWithoutFilter<'a> {
+	///
+	pub fn new(
+		repo: &'a mut gix::Repository,
+		limit: usize,
+	) -> Result<Self> {
+		// This seems to be an object cache size that yields optimal performance. There’s no specific
+		// reason this is 2^14, so benchmarking might reveal that there’s better values.
+		repo.object_cache_size_if_unset(2_usize.pow(14));
+
+		let commit = repo.head()?.peel_to_commit_in_place()?;
+
+		let tips = [commit.id];
+
+		let platform = repo
+			.rev_walk(tips)
+			.sorting(gix::revision::walk::Sorting::ByCommitTime(gix::traverse::commit::simple::CommitTimeOrder::NewestFirst))
+			.use_commit_graph(false);
+
+		let walk = platform.all()?;
+
+		Ok(Self {
+			walk,
+			limit,
+			visited: 0,
+		})
+	}
+
+	///
+	pub const fn visited(&self) -> usize {
+		self.visited
+	}
+
+	///
+	pub fn read(&mut self, out: &mut Vec<CommitId>) -> Result<usize> {
+		let mut count = 0_usize;
+
+		while let Some(Ok(info)) = self.walk.next() {
+			let bytes = info.id.as_bytes();
+			let commit_id: CommitId = Oid::from_bytes(bytes)?.into();
+
+			out.push(commit_id);
+
+			count += 1;
+
+			if count == self.limit {
+				break;
+			}
+		}
+
+		self.visited += count;
+
+		Ok(count)
 	}
 }
 
@@ -177,6 +249,43 @@ mod tests {
 
 		let mut items = Vec::new();
 		walk.read(&mut items).unwrap();
+
+		assert_eq!(items.len(), 0);
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_logwalker_without_filter() -> Result<()> {
+		let file_path = Path::new("foo");
+		let (_td, repo) = repo_init_empty().unwrap();
+		let root = repo.path().parent().unwrap();
+		let repo_path: &RepoPath =
+			&root.as_os_str().to_str().unwrap().into();
+
+		File::create(root.join(file_path))?.write_all(b"a")?;
+		stage_add_file(repo_path, file_path).unwrap();
+		commit(repo_path, "commit1").unwrap();
+		File::create(root.join(file_path))?.write_all(b"a")?;
+		stage_add_file(repo_path, file_path).unwrap();
+		let oid2 = commit(repo_path, "commit2").unwrap();
+
+		let mut repo: gix::Repository =
+				gix::ThreadSafeRepository::discover_with_environment_overrides(repo_path.gitpath())
+						.map(Into::into)
+						.unwrap();
+		let mut walk = LogWalkerWithoutFilter::new(&mut repo, 100)?;
+		let mut items = Vec::new();
+		assert!(matches!(walk.read(&mut items), Ok(2)));
+
+		let info = get_commits_info(repo_path, &items, 50).unwrap();
+		dbg!(&info);
+
+		assert_eq!(items.len(), 2);
+		assert_eq!(items[0], oid2);
+
+		let mut items = Vec::new();
+		assert!(matches!(walk.read(&mut items), Ok(0)));
 
 		assert_eq!(items.len(), 0);
 

@@ -39,7 +39,7 @@ impl DrawableComponent for HelpPopup {
 				self.selection.saturating_sub(scroll_threshold);
 
 			let area =
-				ui::centered_rect_absolute(SIZE.0, SIZE.1, f.size());
+				ui::centered_rect_absolute(SIZE.0, SIZE.1, f.area());
 
 			f.render_widget(Clear, area);
 			f.render_widget(
@@ -65,6 +65,15 @@ impl DrawableComponent for HelpPopup {
 					.scroll((scroll, 0))
 					.alignment(Alignment::Left),
 				chunks[0],
+			);
+
+			ui::draw_scrollbar(
+				f,
+				area,
+				&self.theme,
+				self.cmds.len(),
+				self.selection as usize,
+				ui::Orientation::Vertical,
 			);
 
 			f.render_widget(
@@ -208,7 +217,7 @@ impl HelpPopup {
 		let mut processed = 0_u16;
 
 		for (key, group) in
-			&self.cmds.iter().group_by(|e| e.text.group)
+			&self.cmds.iter().chunk_by(|e| e.text.group)
 		{
 			txt.push(Line::from(Span::styled(
 				Cow::from(key.to_string()),

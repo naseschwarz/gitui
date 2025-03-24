@@ -38,7 +38,7 @@ impl DrawableComponent for MsgPopup {
 			return Ok(());
 		}
 
-		let max_width = f.size().width.max(MINIMUM_WIDTH);
+		let max_width = f.area().width.max(MINIMUM_WIDTH);
 
 		// determine the maximum width of text block
 		let width = self
@@ -53,7 +53,7 @@ impl DrawableComponent for MsgPopup {
 			.expect("can't fail because we're clamping to u16 value");
 
 		let area =
-			ui::centered_rect_absolute(width, POPUP_HEIGHT, f.size());
+			ui::centered_rect_absolute(width, POPUP_HEIGHT, f.area());
 
 		// Wrap lines and break words if there is not enough space
 		let wrapped_msg = bwrap::wrap_maybrk!(
@@ -67,7 +67,7 @@ impl DrawableComponent for MsgPopup {
 
 		let height = POPUP_HEIGHT
 			.saturating_sub(BORDER_WIDTH)
-			.min(f.size().height.saturating_sub(BORDER_WIDTH));
+			.min(f.area().height.saturating_sub(BORDER_WIDTH));
 
 		let top =
 			self.scroll.update_no_selection(line_num, height.into());
@@ -114,7 +114,7 @@ impl Component for MsgPopup {
 		_force_all: bool,
 	) -> CommandBlocking {
 		out.push(CommandInfo::new(
-			strings::commands::close_msg(&self.key_config),
+			strings::commands::close_popup(&self.key_config),
 			true,
 			self.visible,
 		));
@@ -135,7 +135,7 @@ impl Component for MsgPopup {
 	fn event(&mut self, ev: &Event) -> Result<EventState> {
 		if self.visible {
 			if let Event::Key(e) = ev {
-				if key_match(e, self.key_config.keys.enter) {
+				if key_match(e, self.key_config.keys.exit_popup) {
 					self.hide();
 				} else if key_match(
 					e,

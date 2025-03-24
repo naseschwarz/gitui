@@ -1,7 +1,8 @@
 use crate::{
 	error::Result,
 	sync::{
-		repo, CommitId, LogWalker, RepoPath, SharedCommitFilterFn,
+		repo, CommitId, LogWalker, LogWalkerWithoutFilter, RepoPath,
+		SharedCommitFilterFn,
 	},
 	AsyncGitNotification, Error,
 };
@@ -125,7 +126,7 @@ impl AsyncLog {
 	}
 
 	///
-	pub fn set_background(&mut self) {
+	pub fn set_background(&self) {
 		self.background.store(true, Ordering::Relaxed);
 	}
 
@@ -145,7 +146,7 @@ impl AsyncLog {
 	}
 
 	///
-	pub fn fetch(&mut self) -> Result<FetchStatus> {
+	pub fn fetch(&self) -> Result<FetchStatus> {
 		self.background.store(false, Ordering::Relaxed);
 
 		if self.is_pending() {
@@ -199,6 +200,34 @@ impl AsyncLog {
 		sender: &Sender<AsyncGitNotification>,
 		filter: Option<SharedCommitFilterFn>,
 	) -> Result<()> {
+		filter.map_or_else(
+			|| {
+				Self::fetch_helper_without_filter(
+					repo_path,
+					arc_current,
+					arc_background,
+					sender,
+				)
+			},
+			|filter| {
+				Self::fetch_helper_with_filter(
+					repo_path,
+					arc_current,
+					arc_background,
+					sender,
+					filter,
+				)
+			},
+		)
+	}
+
+	fn fetch_helper_with_filter(
+		repo_path: &RepoPath,
+		arc_current: &Arc<Mutex<AsyncLogResult>>,
+		arc_background: &Arc<AtomicBool>,
+		sender: &Sender<AsyncGitNotification>,
+		filter: SharedCommitFilterFn,
+	) -> Result<()> {
 		let start_time = Instant::now();
 
 		let mut entries = vec![CommitId::default(); LIMIT_COUNT];
@@ -206,7 +235,7 @@ impl AsyncLog {
 
 		let r = repo(repo_path)?;
 		let mut walker =
-			LogWalker::new(&r, LIMIT_COUNT)?.filter(filter);
+			LogWalker::new(&r, LIMIT_COUNT)?.filter(Some(filter));
 
 		loop {
 			entries.clear();
@@ -236,7 +265,52 @@ impl AsyncLog {
 		Ok(())
 	}
 
-	fn clear(&mut self) -> Result<()> {
+	fn fetch_helper_without_filter(
+		repo_path: &RepoPath,
+		arc_current: &Arc<Mutex<AsyncLogResult>>,
+		arc_background: &Arc<AtomicBool>,
+		sender: &Sender<AsyncGitNotification>,
+	) -> Result<()> {
+		let start_time = Instant::now();
+
+		let mut entries = vec![CommitId::default(); LIMIT_COUNT];
+		entries.resize(0, CommitId::default());
+
+		let mut repo: gix::Repository =
+				gix::ThreadSafeRepository::discover_with_environment_overrides(repo_path.gitpath())
+						.map(Into::into)?;
+		let mut walker =
+			LogWalkerWithoutFilter::new(&mut repo, LIMIT_COUNT)?;
+
+		loop {
+			entries.clear();
+			let read = walker.read(&mut entries)?;
+
+			let mut current = arc_current.lock()?;
+			current.commits.extend(entries.iter());
+			current.duration = start_time.elapsed();
+
+			if read == 0 {
+				break;
+			}
+			Self::notify(sender);
+
+			let sleep_duration =
+				if arc_background.load(Ordering::Relaxed) {
+					SLEEP_BACKGROUND
+				} else {
+					SLEEP_FOREGROUND
+				};
+
+			thread::sleep(sleep_duration);
+		}
+
+		log::trace!("revlog visited: {}", walker.visited());
+
+		Ok(())
+	}
+
+	fn clear(&self) -> Result<()> {
 		self.current.lock()?.commits.clear();
 		*self.current_head.lock()? = None;
 		self.partial_extract.store(false, Ordering::Relaxed);
@@ -247,5 +321,87 @@ impl AsyncLog {
 		sender
 			.send(AsyncGitNotification::Log)
 			.expect("error sending");
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::atomic::AtomicBool;
+	use std::sync::{Arc, Mutex};
+	use std::time::Duration;
+
+	use crossbeam_channel::unbounded;
+	use serial_test::serial;
+	use tempfile::TempDir;
+
+	use crate::sync::tests::{debug_cmd_print, repo_init};
+	use crate::sync::RepoPath;
+	use crate::AsyncLog;
+
+	use super::AsyncLogResult;
+
+	#[test]
+	#[serial]
+	fn test_smoke_in_subdir() {
+		let (_td, repo) = repo_init().unwrap();
+		let root = repo.path().parent().unwrap();
+		let repo_path: RepoPath =
+			root.as_os_str().to_str().unwrap().into();
+
+		let (tx_git, _rx_git) = unbounded();
+
+		debug_cmd_print(&repo_path, "mkdir subdir");
+
+		let subdir = repo.path().parent().unwrap().join("subdir");
+		let subdir_path: RepoPath =
+			subdir.as_os_str().to_str().unwrap().into();
+
+		let arc_current = Arc::new(Mutex::new(AsyncLogResult {
+			commits: Vec::new(),
+			duration: Duration::default(),
+		}));
+		let arc_background = Arc::new(AtomicBool::new(false));
+
+		let result = AsyncLog::fetch_helper_without_filter(
+			&subdir_path,
+			&arc_current,
+			&arc_background,
+			&tx_git,
+		);
+
+		assert_eq!(result.unwrap(), ());
+	}
+
+	#[test]
+	#[serial]
+	fn test_env_variables() {
+		let (_td, repo) = repo_init().unwrap();
+		let git_dir = repo.path();
+
+		let (tx_git, _rx_git) = unbounded();
+
+		let empty_dir = TempDir::new().unwrap();
+		let empty_path: RepoPath =
+			empty_dir.path().to_str().unwrap().into();
+
+		let arc_current = Arc::new(Mutex::new(AsyncLogResult {
+			commits: Vec::new(),
+			duration: Duration::default(),
+		}));
+		let arc_background = Arc::new(AtomicBool::new(false));
+
+		std::env::set_var("GIT_DIR", git_dir);
+
+		let result = AsyncLog::fetch_helper_without_filter(
+			// We pass an empty path, thus testing whether `GIT_DIR`, set above, is taken into account.
+			&empty_path,
+			&arc_current,
+			&arc_background,
+			&tx_git,
+		);
+
+		std::env::remove_var("GIT_DIR");
+
+		assert_eq!(result.unwrap(), ());
 	}
 }

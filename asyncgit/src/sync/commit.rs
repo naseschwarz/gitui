@@ -54,7 +54,7 @@ pub fn amend(
 
 /// Wrap `Repository::signature` to allow unknown user.name.
 ///
-/// See <https://github.com/extrawurst/gitui/issues/79>.
+/// See <https://github.com/gitui-org/gitui/issues/79>.
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) fn signature_allow_undefined_name(
 	repo: &Repository,
@@ -330,10 +330,7 @@ mod tests {
 			vec![Tag::new("tag")]
 		);
 
-		assert!(matches!(
-			tag_commit(repo_path, &new_id, "tag", None),
-			Err(_)
-		));
+		assert!(tag_commit(repo_path, &new_id, "tag", None).is_err());
 
 		assert_eq!(
 			get_tags(repo_path).unwrap()[&new_id],
@@ -401,13 +398,13 @@ mod tests {
 
 		let error = commit(repo_path, "commit msg");
 
-		assert!(matches!(error, Err(_)));
+		assert!(error.is_err());
 
 		repo.config()?.set_str("user.email", "email")?;
 
 		let success = commit(repo_path, "commit msg");
 
-		assert!(matches!(success, Ok(_)));
+		assert!(success.is_ok());
 		assert_eq!(count_commits(&repo, 10), 1);
 
 		let details =
@@ -437,7 +434,7 @@ mod tests {
 
 		let mut success = commit(repo_path, "commit msg");
 
-		assert!(matches!(success, Ok(_)));
+		assert!(success.is_ok());
 		assert_eq!(count_commits(&repo, 10), 1);
 
 		let mut details =
@@ -450,7 +447,7 @@ mod tests {
 
 		success = commit(repo_path, "commit msg");
 
-		assert!(matches!(success, Ok(_)));
+		assert!(success.is_ok());
 		assert_eq!(count_commits(&repo, 10), 2);
 
 		details =

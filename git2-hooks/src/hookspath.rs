@@ -3,7 +3,10 @@ use git2::Repository;
 use crate::{error::Result, HookResult, HooksError};
 
 use std::{
-	path::Path, path::PathBuf, process::Command, str::FromStr,
+	env,
+	path::{Path, PathBuf},
+	process::Command,
+	str::FromStr,
 };
 
 pub struct HookPaths {
@@ -113,10 +116,12 @@ impl HookPaths {
 
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let git_bash = find_bash_executable()
-			.unwrap_or_else(|| PathBuf::from("bash"));
-		let output = Command::new(git_bash)
+		let git_shell = find_bash_executable()
+			.or_else(find_default_unix_shell)
+			.unwrap_or_else(|| "bash".into());
+		let output = Command::new(git_shell)
 			.args(bash_args)
+			.with_no_window()
 			.current_dir(&self.pwd)
 			// This call forces Command to handle the Path environment correctly on windows,
 			// the specific env set here does not matter
@@ -189,5 +194,41 @@ fn find_bash_executable() -> Option<PathBuf> {
 			.filter(|p| p.exists())
 	} else {
 		None
+	}
+}
+
+// Find default shell on Unix-like OS.
+fn find_default_unix_shell() -> Option<PathBuf> {
+	env::var_os("SHELL").map(PathBuf::from)
+}
+
+trait CommandExt {
+	/// The process is a console application that is being run without a
+	/// console window. Therefore, the console handle for the application is
+	/// not set.
+	///
+	/// This flag is ignored if the application is not a console application,
+	/// or if it used with either `CREATE_NEW_CONSOLE` or `DETACHED_PROCESS`.
+	///
+	/// See: <https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags>
+	const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+	fn with_no_window(&mut self) -> &mut Self;
+}
+
+impl CommandExt for Command {
+	/// On Windows, CLI applications that aren't the window's subsystem will
+	/// create and show a console window that pops up next to the main
+	/// application window when run. We disable this behavior by setting the
+	/// `CREATE_NO_WINDOW` flag.
+	#[inline]
+	fn with_no_window(&mut self) -> &mut Self {
+		#[cfg(windows)]
+		{
+			use std::os::windows::process::CommandExt;
+			self.creation_flags(Self::CREATE_NO_WINDOW);
+		}
+
+		self
 	}
 }

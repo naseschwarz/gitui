@@ -193,7 +193,7 @@ impl PushPopup {
 
 	///
 	pub fn get_progress(
-		progress: &Option<RemoteProgress>,
+		progress: Option<&RemoteProgress>,
 	) -> (String, u8) {
 		progress.as_ref().map_or(
 			(strings::PUSH_POPUP_PROGRESS_NONE.into(), 0),
@@ -232,9 +232,9 @@ impl DrawableComponent for PushPopup {
 	fn draw(&self, f: &mut Frame, rect: Rect) -> Result<()> {
 		if self.visible {
 			let (state, progress) =
-				Self::get_progress(&self.progress);
+				Self::get_progress(self.progress.as_ref());
 
-			let area = ui::centered_rect_absolute(30, 3, f.size());
+			let area = ui::centered_rect_absolute(30, 3, f.area());
 
 			f.render_widget(Clear, area);
 			f.render_widget(

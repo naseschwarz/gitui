@@ -171,7 +171,7 @@ impl CommitList {
 	}
 
 	///
-	pub fn checkout(&mut self) {
+	pub fn checkout(&self) {
 		if let Some(commit_hash) =
 			self.selected_entry().map(|entry| entry.id)
 		{
@@ -634,8 +634,7 @@ impl CommitList {
 										) => details
 											.upstream
 											.as_ref()
-											.map_or(
-												false,
+											.is_some_and(
 												|upstream| {
 													upstream.reference == remote_branch.reference
 												},
@@ -705,7 +704,7 @@ impl CommitList {
 		}
 	}
 
-	fn selection_highlighted(&mut self) -> bool {
+	fn selection_highlighted(&self) -> bool {
 		let commit = self.commits[self.selection];
 
 		self.highlights
@@ -761,7 +760,7 @@ impl CommitList {
 				self.items.set_items(
 					want_min,
 					commits,
-					&self.highlights,
+					self.highlights.as_ref(),
 				);
 			}
 		}

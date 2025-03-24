@@ -203,9 +203,9 @@ impl DrawableComponent for PullPopup {
 	fn draw(&self, f: &mut Frame, rect: Rect) -> Result<()> {
 		if self.visible {
 			let (state, progress) =
-				PushPopup::get_progress(&self.progress);
+				PushPopup::get_progress(self.progress.as_ref());
 
-			let area = ui::centered_rect_absolute(30, 3, f.size());
+			let area = ui::centered_rect_absolute(30, 3, f.area());
 
 			f.render_widget(Clear, area);
 			f.render_widget(

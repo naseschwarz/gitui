@@ -35,7 +35,7 @@ impl DrawableComponent for ConfirmPopup {
 				self.theme.text_danger(),
 			);
 
-			let area = ui::centered_rect(50, 20, f.size());
+			let area = ui::centered_rect(50, 20, f.area());
 			f.render_widget(Clear, area);
 			f.render_widget(
 				popup_paragraph(&title, txt, &self.theme, true, true),
@@ -168,6 +168,10 @@ impl ConfirmPopup {
                         branch_ref,
                     ),
                 ),
+		Action::DeleteRemote(remote_name)=>(
+			strings::confirm_title_delete_remote(&self.key_config),
+			strings::confirm_msg_delete_remote(&self.key_config,remote_name),
+		),
                 Action::DeleteTag(tag_name) => (
                     strings::confirm_title_delete_tag(
                         &self.key_config,

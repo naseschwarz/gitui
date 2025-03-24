@@ -339,9 +339,7 @@ impl DiffComponent {
 
 				for (i, hunk) in diff.hunks.iter().enumerate() {
 					let hunk_selected = self.focused()
-						&& self
-							.selected_hunk
-							.map_or(false, |s| s == i);
+						&& self.selected_hunk.is_some_and(|s| s == i);
 
 					if lines_added >= height as usize {
 						break;
@@ -496,7 +494,7 @@ impl DiffComponent {
 		false
 	}
 
-	fn unstage_hunk(&mut self) -> Result<()> {
+	fn unstage_hunk(&self) -> Result<()> {
 		if let Some(diff) = &self.diff {
 			if let Some(hunk) = self.selected_hunk {
 				let hash = diff.hunks[hunk].header_hash;
@@ -513,7 +511,7 @@ impl DiffComponent {
 		Ok(())
 	}
 
-	fn stage_hunk(&mut self) -> Result<()> {
+	fn stage_hunk(&self) -> Result<()> {
 		if let Some(diff) = &self.diff {
 			if let Some(hunk) = self.selected_hunk {
 				if diff.untracked {
@@ -621,7 +619,7 @@ impl DiffComponent {
 		)));
 	}
 
-	fn stage_unstage_hunk(&mut self) -> Result<()> {
+	fn stage_unstage_hunk(&self) -> Result<()> {
 		if self.current.is_stage {
 			self.unstage_hunk()?;
 		} else {

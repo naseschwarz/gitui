@@ -139,7 +139,7 @@ impl DrawableComponent for BlameFilePopup {
 
 			let table = Table::new(rows, constraints)
 				.column_spacing(1)
-				.highlight_style(self.theme.text(true, true))
+				.row_highlight_style(self.theme.text(true, true))
 				.block(
 					Block::default()
 						.borders(Borders::ALL)
@@ -611,7 +611,7 @@ impl BlameFilePopup {
 							i,
 							(blame_hunk.as_ref(), line.as_ref()),
 							file_blame,
-							&styled_text,
+							styled_text.as_ref(),
 						)
 					})
 					.collect()
@@ -643,6 +643,7 @@ impl BlameFilePopup {
 		job.spawn(AsyncSyntaxJob::new(
 			text,
 			params.file_path.clone(),
+			self.theme.get_syntax(),
 		));
 	}
 
@@ -652,7 +653,7 @@ impl BlameFilePopup {
 		line_number: usize,
 		hunk_and_line: (Option<&BlameHunk>, &str),
 		file_blame: &'a SyntaxFileBlame,
-		styled_text: &Option<Text<'a>>,
+		styled_text: Option<&Text<'a>>,
 	) -> Row<'a> {
 		let (hunk_for_line, line) = hunk_and_line;
 
@@ -752,7 +753,7 @@ impl BlameFilePopup {
 		number_of_digits(max_line_number)
 	}
 
-	fn move_selection(&mut self, scroll_type: ScrollType) -> bool {
+	fn move_selection(&self, scroll_type: ScrollType) -> bool {
 		let mut table_state = self.table_state.take();
 
 		let old_selection = table_state.selected().unwrap_or(0);
@@ -783,7 +784,7 @@ impl BlameFilePopup {
 		needs_update
 	}
 
-	fn set_open_selection(&mut self) {
+	fn set_open_selection(&self) {
 		if let Some(selection) =
 			self.open_request.as_ref().and_then(|req| req.selection)
 		{

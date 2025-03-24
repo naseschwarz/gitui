@@ -451,7 +451,7 @@ impl Status {
 		Ok(())
 	}
 
-	pub fn get_files_changes(&mut self) -> Result<Vec<StatusItem>> {
+	pub fn get_files_changes(&self) -> Result<Vec<StatusItem>> {
 		Ok(self.git_status_stage.last()?.items)
 	}
 
@@ -540,7 +540,7 @@ impl Status {
 	}
 
 	/// called after confirmation
-	pub fn reset(&mut self, item: &ResetItem) -> bool {
+	pub fn reset(&self, item: &ResetItem) -> bool {
 		if let Err(e) = sync::reset_workdir(
 			&self.repo.borrow(),
 			item.path.as_str(),
@@ -686,7 +686,8 @@ impl Status {
 				strings::commands::select_staging(&self.key_config),
 				!focus_on_diff,
 				(self.visible
-					&& !focus_on_diff && self.focus == Focus::WorkDir)
+					&& !focus_on_diff
+					&& self.focus == Focus::WorkDir)
 					|| force_all,
 			)
 			.order(strings::order::NAV),
@@ -696,7 +697,8 @@ impl Status {
 				strings::commands::select_unstaged(&self.key_config),
 				!focus_on_diff,
 				(self.visible
-					&& !focus_on_diff && self.focus == Focus::Stage)
+					&& !focus_on_diff
+					&& self.focus == Focus::Stage)
 					|| force_all,
 			)
 			.order(strings::order::NAV),

@@ -114,7 +114,7 @@ impl FileTree {
 
 	///
 	pub fn move_selection(&mut self, dir: MoveSelection) -> bool {
-		self.selection.map_or(false, |selection| {
+		self.selection.is_some_and(|selection| {
 			let new_index = match dir {
 				MoveSelection::Up => {
 					self.selection_updown(selection, true)
@@ -275,10 +275,7 @@ impl FileTree {
 		}
 	}
 
-	fn select_parent(
-		&mut self,
-		current_index: usize,
-	) -> Option<usize> {
+	fn select_parent(&self, current_index: usize) -> Option<usize> {
 		let indent =
 			self.items.tree_items[current_index].info().indent();
 

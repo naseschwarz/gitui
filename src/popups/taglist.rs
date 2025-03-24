@@ -62,10 +62,10 @@ impl DrawableComponent for TagListPopup {
 			let area = ui::centered_rect(
 				PERCENT_SIZE.width,
 				PERCENT_SIZE.height,
-				f.size(),
+				f.area(),
 			);
 			let area =
-				ui::rect_inside(MIN_SIZE, f.size().into(), area);
+				ui::rect_inside(MIN_SIZE, f.area().into(), area);
 			let area = area.intersection(rect);
 
 			let tag_name_width =
@@ -94,7 +94,7 @@ impl DrawableComponent for TagListPopup {
 
 			let table = Table::new(rows, constraints)
 				.column_spacing(1)
-				.highlight_style(self.theme.text(true, true))
+				.row_highlight_style(self.theme.text(true, true))
 				.block(
 					Block::default()
 						.borders(Borders::ALL)
@@ -111,7 +111,7 @@ impl DrawableComponent for TagListPopup {
 			f.render_widget(Clear, area);
 			f.render_stateful_widget(table, area, &mut table_state);
 
-			let area = area.inner(&Margin {
+			let area = area.inner(Margin {
 				vertical: 1,
 				horizontal: 0,
 			});
@@ -374,7 +374,7 @@ impl TagListPopup {
 		Ok(())
 	}
 
-	pub fn update_missing_remote_tags(&mut self) {
+	pub fn update_missing_remote_tags(&self) {
 		if self.has_remotes {
 			self.async_remote_tags.spawn(AsyncRemoteTagsJob::new(
 				self.repo.borrow().clone(),
@@ -384,7 +384,7 @@ impl TagListPopup {
 	}
 
 	///
-	fn move_selection(&mut self, scroll_type: ScrollType) -> bool {
+	fn move_selection(&self, scroll_type: ScrollType) -> bool {
 		let mut table_state = self.table_state.take();
 
 		let old_selection = table_state.selected().unwrap_or(0);
@@ -448,7 +448,7 @@ impl TagListPopup {
 		let is_tag_missing_on_remote = self
 			.missing_remote_tags
 			.as_ref()
-			.map_or(false, |missing_remote_tags| {
+			.is_some_and(|missing_remote_tags| {
 				let remote_tag = format!("refs/tags/{}", tag.name);
 
 				missing_remote_tags.contains(&remote_tag)
