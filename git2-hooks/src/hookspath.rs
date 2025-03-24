@@ -3,7 +3,7 @@ use git2::Repository;
 use crate::{error::Result, HookResult, HooksError};
 
 use std::{
-	env,
+	ffi::OsStr,
 	path::{Path, PathBuf},
 	process::Command,
 	str::FromStr,
@@ -41,16 +41,8 @@ impl HookPaths {
 		if let Some(config_path) = Self::config_hook_path(repo)? {
 			let hooks_path = PathBuf::from(config_path);
 
-			let hook = hooks_path.join(hook);
-
-			let hook = shellexpand::full(
-				hook.as_os_str()
-					.to_str()
-					.ok_or(HooksError::PathToString)?,
-			)?;
-
-			let hook = PathBuf::from_str(hook.as_ref())
-				.map_err(|_| HooksError::PathToString)?;
+			let hook =
+				Self::expand_path(&hooks_path.join(hook), &pwd)?;
 
 			return Ok(Self {
 				git: git_dir,
@@ -63,6 +55,41 @@ impl HookPaths {
 			git: git_dir,
 			hook: Self::find_hook(repo, other_paths, hook),
 			pwd,
+		})
+	}
+
+	/// Expand path according to the rule of githooks and config
+	/// core.hooksPath
+	fn expand_path(path: &Path, pwd: &Path) -> Result<PathBuf> {
+		let hook_expanded = shellexpand::full(
+			path.as_os_str()
+				.to_str()
+				.ok_or(HooksError::PathToString)?,
+		)?;
+		let hook_expanded = PathBuf::from_str(hook_expanded.as_ref())
+			.map_err(|_| HooksError::PathToString)?;
+
+		// `man git-config`:
+		//
+		// > A relative path is taken as relative to the
+		// > directory where the hooks are run (see the
+		// > "DESCRIPTION" section of githooks[5]).
+		//
+		// `man githooks`:
+		//
+		// > Before Git invokes a hook, it changes its
+		// > working directory to either $GIT_DIR in a bare
+		// > repository or the root of the working tree in a
+		// > non-bare repository.
+		//
+		// I.e. relative paths in core.hooksPath in non-bare
+		// repositories are always relative to GIT_WORK_TREE.
+		Ok({
+			if hook_expanded.is_absolute() {
+				hook_expanded
+			} else {
+				pwd.join(hook_expanded)
+			}
 		})
 	}
 
@@ -108,29 +135,45 @@ impl HookPaths {
 	/// see <https://git-scm.com/docs/githooks>
 	pub fn run_hook(&self, args: &[&str]) -> Result<HookResult> {
 		let hook = self.hook.clone();
-
-		let arg_str = format!("{:?} {}", hook, args.join(" "));
-		// Use -l to avoid "command not found" on Windows.
-		let bash_args =
-			vec!["-l".to_string(), "-c".to_string(), arg_str];
-
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let git_shell = find_bash_executable()
-			.or_else(find_default_unix_shell)
-			.unwrap_or_else(|| "bash".into());
-		let output = Command::new(git_shell)
-			.args(bash_args)
-			.with_no_window()
-			.current_dir(&self.pwd)
-			// This call forces Command to handle the Path environment correctly on windows,
-			// the specific env set here does not matter
-			// see https://github.com/rust-lang/rust/issues/37519
-			.env(
-				"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
-				"FixPathHandlingOnWindows",
+		let run_command = |command: &mut Command| {
+			command.current_dir(&self.pwd).with_no_window().output()
+		};
+		let output = if cfg!(windows) {
+			let command = {
+				let mut os_str = std::ffi::OsString::new();
+				os_str.push("'");
+				os_str.push(hook.as_os_str()); // TODO: this doesn't work if `hook` contains single-quotes
+				os_str.push("'");
+				os_str.push(" \"$@\"");
+				os_str
+			};
+			let shell_args = {
+				let mut shell_args = vec![
+					OsStr::new("-l"), // Use -l to avoid "command not found"
+					OsStr::new("-c"),
+					command.as_os_str(),
+					hook.as_os_str(),
+				];
+				shell_args.extend(args.iter().map(OsStr::new));
+				shell_args
+			};
+
+			run_command(
+				Command::new(sh_on_windows())
+					.args(shell_args)
+					// This call forces Command to handle the Path environment correctly on windows,
+					// the specific env set here does not matter
+					// see https://github.com/rust-lang/rust/issues/37519
+					.env(
+						"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
+						"FixPathHandlingOnWindows",
+					),
 			)
-			.output()?;
+		} else {
+			run_command(Command::new(&hook).args(args))
+		}?;
 
 		if output.status.success() {
 			Ok(HookResult::Ok { hook })
@@ -147,6 +190,30 @@ impl HookPaths {
 				hook,
 			})
 		}
+	}
+}
+
+/// Get the path to the sh.exe bundled with Git for Windows
+fn sh_on_windows() -> PathBuf {
+	if cfg!(windows) {
+		Command::new("where.exe")
+			.arg("git")
+			.output()
+			.ok()
+			.map(|out| {
+				PathBuf::from(Into::<String>::into(
+					String::from_utf8_lossy(&out.stdout),
+				))
+			})
+			.as_deref()
+			.and_then(Path::parent)
+			.and_then(Path::parent)
+			.map(|p| p.join("usr/bin/sh.exe"))
+			.filter(|p| p.exists())
+			.unwrap_or_else(|| "sh".into())
+	} else {
+		debug_assert!(false, "should only be called on windows");
+		"sh".into()
 	}
 }
 
@@ -168,38 +235,10 @@ fn is_executable(path: &Path) -> bool {
 }
 
 #[cfg(windows)]
-/// windows does not consider bash scripts to be executable so we consider everything
+/// windows does not consider shell scripts to be executable so we consider everything
 /// to be executable (which is not far from the truth for windows platform.)
 const fn is_executable(_: &Path) -> bool {
 	true
-}
-
-// Find bash.exe, and avoid finding wsl's bash.exe on Windows.
-// None for non-Windows.
-fn find_bash_executable() -> Option<PathBuf> {
-	if cfg!(windows) {
-		Command::new("where.exe")
-			.arg("git")
-			.output()
-			.ok()
-			.map(|out| {
-				PathBuf::from(Into::<String>::into(
-					String::from_utf8_lossy(&out.stdout),
-				))
-			})
-			.as_deref()
-			.and_then(Path::parent)
-			.and_then(Path::parent)
-			.map(|p| p.join("usr/bin/bash.exe"))
-			.filter(|p| p.exists())
-	} else {
-		None
-	}
-}
-
-// Find default shell on Unix-like OS.
-fn find_default_unix_shell() -> Option<PathBuf> {
-	env::var_os("SHELL").map(PathBuf::from)
 }
 
 trait CommandExt {
@@ -230,5 +269,37 @@ impl CommandExt for Command {
 		}
 
 		self
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::HookPaths;
+	use std::path::Path;
+
+	#[test]
+	fn test_hookspath_relative() {
+		assert_eq!(
+			HookPaths::expand_path(
+				&Path::new("pre-commit"),
+				&Path::new("example_git_root"),
+			)
+			.unwrap(),
+			Path::new("example_git_root").join("pre-commit")
+		);
+	}
+
+	#[test]
+	fn test_hookspath_absolute() {
+		let absolute_hook =
+			std::env::current_dir().unwrap().join("pre-commit");
+		assert_eq!(
+			HookPaths::expand_path(
+				&absolute_hook,
+				&Path::new("example_git_root"),
+			)
+			.unwrap(),
+			absolute_hook
+		);
 	}
 }

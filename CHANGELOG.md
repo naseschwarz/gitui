@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+* execute git-hooks without shell (on *nix) [[@Joshix](https://github.com/Joshix-1)] ([#2483](https://github.com/extrawurst/gitui/pull/2483))
 
 ### Added
 * support loading custom syntax highlighting themes from a file [[@acuteenvy](https://github.com/acuteenvy)] ([#2565](https://github.com/gitui-org/gitui/pull/2565))
@@ -23,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * push: respect `branch.*.merge` when push default is upstream [[@vlad-anger](https://github.com/vlad-anger)] ([#2542](https://github.com/gitui-org/gitui/pull/2542))
 * set the terminal title to `gitui ({repo_path})` [[@acuteenvy](https://github.com/acuteenvy)] ([#2462](https://github.com/gitui-org/gitui/issues/2462))
 * respect `.mailmap` [[@acuteenvy](https://github.com/acuteenvy)] ([#2406](https://github.com/gitui-org/gitui/issues/2406))
+
+### Fixes
+*  Resolve `core.hooksPath` relative to `GIT_WORK_TREE` [[@naseschwarz](https://github.com/naseschwarz)] ([#2571](https://github.com/gitui-org/gitui/issues/2571))
 
 ## [0.27.0] - 2024-01-14
 
