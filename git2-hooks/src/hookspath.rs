@@ -114,17 +114,14 @@ impl HookPaths {
 		};
 
 		let output = if cfg!(windows) {
-			let command =
-				build_shell_script_execution_command(&hook, args);
-			run_command(command)
+			run_command(sh_command(&hook, args))
 		} else {
 			let mut command = Command::new(&hook);
 			command.args(args);
 			match run_command(command) {
 				Err(err) if err.raw_os_error() == Some(8) => {
-					run_command(build_shell_script_execution_command(
-						&hook, args,
-					))
+					// if execution failed with ENOEXEC execute with /bin/sh
+					run_command(sh_command(&hook, args))
 				}
 
 				result => result,
@@ -149,10 +146,7 @@ impl HookPaths {
 	}
 }
 
-fn build_shell_script_execution_command(
-	script: &Path,
-	args: &[&str],
-) -> Command {
+fn sh_command(script: &Path, args: &[&str]) -> Command {
 	let mut command = Command::new(sh_path());
 
 	if cfg!(windows) {
