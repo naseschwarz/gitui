@@ -110,26 +110,21 @@ impl HookPaths {
 		let hook = self.hook.clone();
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let run_command = |command: &mut Command| {
-			command.current_dir(&self.pwd).with_no_window().output()
-		};
-		let output = if cfg!(windows) {
-			run_command(
-				build_shell_script_execution_command(&hook, args)
-					// This call forces Command to handle the Path environment correctly on windows,
-					// the specific env set here does not matter
-					// see https://github.com/rust-lang/rust/issues/37519
-					.env(
-						"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
-						"FixPathHandlingOnWindows",
-					),
-			)
+		let mut command = if cfg!(windows) {
+			build_shell_script_execution_command(&hook, args)
 		} else {
-			run_command(&mut build_shell_script_execution_command(
-				&hook, args,
-			))
+			eprintln!("linux");
+
+			let c = build_shell_script_execution_command(&hook, args);
 			//run_command(Command::new(&hook).args(args))
-		}?;
+			eprintln!("{:?}", c.get_args());
+			c
+		};
+
+		let output = command
+			.current_dir(&self.pwd)
+			.with_no_window()
+			.output()?;
 
 		if output.status.success() {
 			Ok(HookResult::Ok { hook })
@@ -153,7 +148,7 @@ fn build_shell_script_execution_command(
 	script: &Path,
 	args: &[&str],
 ) -> Command {
-	let command = {
+	let command_string = {
 		let mut os_str = std::ffi::OsString::new();
 		os_str.push("'");
 		os_str.push(script.as_os_str()); // TODO: this doesn't work if `script` contains single-quotes
@@ -161,19 +156,27 @@ fn build_shell_script_execution_command(
 		os_str.push(" \"$@\"");
 		os_str
 	};
-	let shell_args = {
-		let mut shell_args = vec![
-			OsStr::new("-l"), // Use -l to avoid "command not found"
-			OsStr::new("-c"),
-			command.as_os_str(),
-			script.as_os_str(),
-		];
-		shell_args.extend(args.iter().map(OsStr::new));
-		shell_args
-	};
 
 	let mut command = Command::new(sh_path());
-	command.args(shell_args);
+
+	if cfg!(windows) {
+		// Use -l to avoid "command not found"
+		command.arg(OsStr::new("-l"));
+	}
+	command.args([OsStr::new("-c"), command_string.as_os_str()]);
+
+	command.arg(script.as_os_str());
+	command.args(args.iter().map(OsStr::new));
+
+	if cfg!(windows) {
+		// This call forces Command to handle the Path environment correctly on windows,
+		// the specific env set here does not matter
+		// see https://github.com/rust-lang/rust/issues/37519
+		command.env(
+			"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
+			"FixPathHandlingOnWindows",
+		);
+	}
 	command
 }
 
