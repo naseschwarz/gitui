@@ -114,28 +114,8 @@ impl HookPaths {
 			command.current_dir(&self.pwd).with_no_window().output()
 		};
 		let output = if cfg!(windows) {
-			let command = {
-				let mut os_str = std::ffi::OsString::new();
-				os_str.push("'");
-				os_str.push(hook.as_os_str()); // TODO: this doesn't work if `hook` contains single-quotes
-				os_str.push("'");
-				os_str.push(" \"$@\"");
-				os_str
-			};
-			let shell_args = {
-				let mut shell_args = vec![
-					OsStr::new("-l"), // Use -l to avoid "command not found"
-					OsStr::new("-c"),
-					command.as_os_str(),
-					hook.as_os_str(),
-				];
-				shell_args.extend(args.iter().map(OsStr::new));
-				shell_args
-			};
-
 			run_command(
-				Command::new(sh_on_windows())
-					.args(shell_args)
+				build_shell_script_execution_command(&hook, args)
 					// This call forces Command to handle the Path environment correctly on windows,
 					// the specific env set here does not matter
 					// see https://github.com/rust-lang/rust/issues/37519
@@ -145,7 +125,10 @@ impl HookPaths {
 					),
 			)
 		} else {
-			run_command(Command::new(&hook).args(args))
+			run_command(&mut build_shell_script_execution_command(
+				&hook, args,
+			))
+			//run_command(Command::new(&hook).args(args))
 		}?;
 
 		if output.status.success() {
@@ -166,8 +149,37 @@ impl HookPaths {
 	}
 }
 
-/// Get the path to the sh.exe bundled with Git for Windows
-fn sh_on_windows() -> PathBuf {
+fn build_shell_script_execution_command(
+	script: &Path,
+	args: &[&str],
+) -> Command {
+	let command = {
+		let mut os_str = std::ffi::OsString::new();
+		os_str.push("'");
+		os_str.push(script.as_os_str()); // TODO: this doesn't work if `script` contains single-quotes
+		os_str.push("'");
+		os_str.push(" \"$@\"");
+		os_str
+	};
+	let shell_args = {
+		let mut shell_args = vec![
+			OsStr::new("-l"), // Use -l to avoid "command not found"
+			OsStr::new("-c"),
+			command.as_os_str(),
+			script.as_os_str(),
+		];
+		shell_args.extend(args.iter().map(OsStr::new));
+		shell_args
+	};
+
+	let mut command = Command::new(sh_path());
+	command.args(shell_args);
+	command
+}
+
+/// Get the path to the sh executable.
+/// On Windows get the sh.exe bundled with Git for Windows
+pub fn sh_path() -> PathBuf {
 	if cfg!(windows) {
 		Command::new("where.exe")
 			.arg("git")
@@ -185,7 +197,6 @@ fn sh_on_windows() -> PathBuf {
 			.filter(|p| p.exists())
 			.unwrap_or_else(|| "sh".into())
 	} else {
-		debug_assert!(false, "should only be called on windows");
 		"sh".into()
 	}
 }
