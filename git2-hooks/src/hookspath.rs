@@ -3,7 +3,6 @@ use git2::Repository;
 use crate::{error::Result, HookResult, HooksError};
 
 use std::{
-	ffi::OsStr,
 	path::{Path, PathBuf},
 	process::Command,
 	str::FromStr,
@@ -148,25 +147,7 @@ fn build_shell_script_execution_command(
 	script: &Path,
 	args: &[&str],
 ) -> Command {
-	let command_string = {
-		let mut os_str = std::ffi::OsString::new();
-		os_str.push("'");
-		os_str.push(script.as_os_str()); // TODO: this doesn't work if `script` contains single-quotes
-		os_str.push("'");
-		os_str.push(" \"$@\"");
-		os_str
-	};
-
 	let mut command = Command::new(sh_path());
-
-	if cfg!(windows) {
-		// Use -l to avoid "command not found"
-		command.arg(OsStr::new("-l"));
-	}
-	command.args([OsStr::new("-c"), command_string.as_os_str()]);
-
-	command.arg(script.as_os_str());
-	command.args(args.iter().map(OsStr::new));
 
 	if cfg!(windows) {
 		// This call forces Command to handle the Path environment correctly on windows,
@@ -176,7 +157,14 @@ fn build_shell_script_execution_command(
 			"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
 			"FixPathHandlingOnWindows",
 		);
+		// Use -l to avoid "command not found"
+		command.arg("-l");
 	}
+	command
+		.arg(script) // the script to execute
+		.arg(script) // argv[0]
+		.args(args); // argv[1..]
+
 	command
 }
 
