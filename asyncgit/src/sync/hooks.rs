@@ -90,9 +90,9 @@ mod tests {
 		let root = repo.path().parent().unwrap();
 
 		let hook = b"#!/bin/sh
-	echo 'rejected'
-	exit 1
-	        ";
+echo 'rejected'
+exit 1
+";
 
 		git2_hooks::create_hook(
 			&repo,
@@ -127,10 +127,9 @@ mod tests {
 			crate::sync::utils::repo_work_dir(repo_path).unwrap();
 
 		let hook = b"#!/bin/sh
-	echo \"$(pwd)\"
-	exit 1
-	        ";
-
+echo \"$(pwd)\"
+exit 1
+";
 		git2_hooks::create_hook(
 			&repo,
 			git2_hooks::HOOK_PRE_COMMIT,
@@ -153,10 +152,9 @@ mod tests {
 		let root = repo.path().parent().unwrap();
 
 		let hook = b"#!/bin/sh
-	echo 'msg' > \"$1\"
-	echo 'rejected'
-	exit 1
-	        ";
+echo 'msg' > \"$1\"
+echo 'rejected'
+exit 1";
 
 		git2_hooks::create_hook(
 			&repo,
