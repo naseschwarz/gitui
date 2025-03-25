@@ -109,22 +109,28 @@ impl HookPaths {
 		let hook = self.hook.clone();
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let mut command = if cfg!(windows) {
-			// execute hook with sh
-			sh_command(&hook)
-		} else {
-			// execute hook directly
-			Command::new(&hook)
+		let run_command = |mut command: Command| {
+			command
+				.args(args)
+				.current_dir(&self.pwd)
+				.with_no_window()
+				.output()
 		};
 
-		let output = command
-			.args(args)
-			.current_dir(&self.pwd)
-			.with_no_window()
-			.output()?;
+		let output = if cfg!(windows) {
+			// execute hook with sh
+			run_command(sh_command(&hook))
+		} else {
+			// execute hook directly
+			match run_command(Command::new(&hook)) {
+				Err(err) if err.raw_os_error() == Some(8) => {
+					run_command(sh_command(&hook))
+				}
+				result => result,
+			}
+		}?;
 
 		if output.status.success() {
-			eprintln!("{}", String::from_utf8_lossy(&output.stdout));
 			Ok(HookResult::Ok { hook })
 		} else {
 			let stderr =
