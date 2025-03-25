@@ -110,14 +110,18 @@ impl HookPaths {
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
 		let mut command = if cfg!(windows) {
-			sh_command(&hook, args)
+			// execute hook with sh
+			sh_command(&hook)
 		} else {
-			let mut command = Command::new(&hook);
-			command.args(args);
-			command
+			// execute hook directly
+			Command::new(&hook)
 		};
 
-		let output = command.current_dir(&self.pwd).output()?;
+		let output = command
+			.args(args)
+			.current_dir(&self.pwd)
+			.with_no_window()
+			.output()?;
 
 		if output.status.success() {
 			Ok(HookResult::Ok { hook })
@@ -137,7 +141,7 @@ impl HookPaths {
 	}
 }
 
-fn sh_command(script: &Path, args: &[&str]) -> Command {
+fn sh_command(script: &Path) -> Command {
 	let mut command = Command::new(sh_path());
 
 	if cfg!(windows) {
@@ -151,11 +155,9 @@ fn sh_command(script: &Path, args: &[&str]) -> Command {
 
 		// Use -l to avoid "command not found"
 		command.arg("-l");
-
-		command.with_no_window();
 	}
 
-	command.arg(script).args(args);
+	command.arg(script);
 
 	command
 }
