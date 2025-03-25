@@ -532,9 +532,9 @@ sys.exit(1)
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
-echo 'msg' > \"$1\"
-echo 'rejected'
-exit 1
+	echo 'msg' > \"$1\"
+	echo 'rejected'
+	exit 1
         ";
 
 		create_hook(&repo, HOOK_COMMIT_MSG, hook);
