@@ -124,7 +124,6 @@ impl HookPaths {
 			// execute hook directly
 			match run_command(Command::new(&hook)) {
 				Err(err) if err.raw_os_error() == Some(8) => {
-					eprintln!("GOT ENOEXEC: {err}");
 					run_command(sh_command(&hook))
 				}
 				result => result,
