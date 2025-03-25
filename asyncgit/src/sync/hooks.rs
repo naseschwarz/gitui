@@ -22,7 +22,7 @@ impl From<git2_hooks::HookResult> for HookResult {
 				mut stderr,
 				..
 			} => {
-				const ANSI_CLEAR: &str = "\x1B[H\x1B[J";
+				const ANSI_CLEAR: &str = "\x1B[H\x1B[2J\x1B[3J";
 
 				if stderr == ANSI_CLEAR {
 					stderr.clear();
