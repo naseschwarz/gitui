@@ -334,9 +334,9 @@ exit 0
 		} = result
 		{
 			assert_eq!(code, Some(42));
-			assert_eq!(stdout.as_str().trim_end(), TEXT);
-			assert!(stderr.is_empty());
 			assert_eq!(h, hook.hook);
+			assert_eq!(stdout.as_str().trim_ascii_end(), TEXT);
+			assert!(stderr.is_empty());
 		} else {
 			panic!("run_hook should've failed");
 		}
