@@ -156,10 +156,7 @@ fn sh_command(script: &Path) -> Command {
 		// This call forces Command to handle the Path environment correctly on windows,
 		// the specific env set here does not matter
 		// see https://github.com/rust-lang/rust/issues/37519
-		command.env(
-			"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
-			"FixPathHandlingOnWindows",
-		);
+		command.env("TERM", "cygwin");
 
 		// Use -l to avoid "command not found"
 		command.arg("-l");
