@@ -142,7 +142,7 @@ impl HookPaths {
 			if cfg!(windows) {
 				const ANSI_CLEAR: &str = "\x1B[H\x1B[J";
 
-				if let Some(value) = stdout.strip_suffix(ANSI_CLEAR) {
+				if let Some(value) = stderr.strip_suffix(ANSI_CLEAR) {
 					stderr.truncate(value.len());
 				}
 				if let Some(value) = stdout.strip_suffix(ANSI_CLEAR) {
