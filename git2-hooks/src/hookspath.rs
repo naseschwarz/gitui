@@ -134,10 +134,21 @@ impl HookPaths {
 		if output.status.success() {
 			Ok(HookResult::Ok { hook })
 		} else {
-			let stderr =
+			let mut stderr =
 				String::from_utf8_lossy(&output.stderr).to_string();
-			let stdout =
+			let mut stdout =
 				String::from_utf8_lossy(&output.stdout).to_string();
+
+			if cfg!(windows) {
+				const ANSI_CLEAR: &str = "\x1B[H\x1B[J";
+
+				if let Some(value) = stdout.strip_suffix(ANSI_CLEAR) {
+					stderr.truncate(value.len());
+				}
+				if let Some(value) = stdout.strip_suffix(ANSI_CLEAR) {
+					stdout.truncate(value.len());
+				}
+			}
 
 			Ok(HookResult::RunNotSuccessful {
 				code: output.status.code(),
