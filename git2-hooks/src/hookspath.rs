@@ -124,6 +124,7 @@ impl HookPaths {
 			.output()?;
 
 		if output.status.success() {
+			eprintln!("{}", String::from_utf8_lossy(&output.stdout));
 			Ok(HookResult::Ok { hook })
 		} else {
 			let stderr =
