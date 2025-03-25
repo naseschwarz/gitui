@@ -16,6 +16,7 @@ pub struct HookPaths {
 
 const CONFIG_HOOKS_PATH: &str = "core.hooksPath";
 const DEFAULT_HOOKS_PATH: &str = "hooks";
+const ENOEXEC: i32 = 8;
 
 impl HookPaths {
 	/// `core.hooksPath` always takes precedence.
@@ -123,7 +124,7 @@ impl HookPaths {
 		} else {
 			// execute hook directly
 			match run_command(Command::new(&hook)) {
-				Err(err) if err.raw_os_error() == Some(8) => {
+				Err(err) if err.raw_os_error() == Some(ENOEXEC) => {
 					run_command(sh_command(&hook))
 				}
 				result => result,
