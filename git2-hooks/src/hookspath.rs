@@ -187,21 +187,20 @@ pub fn sh_path() -> PathBuf {
 }
 
 #[cfg(unix)]
-const fn is_executable(path: &Path) -> bool {
-	// use std::os::unix::fs::PermissionsExt;
+fn is_executable(path: &Path) -> bool {
+	use std::os::unix::fs::PermissionsExt;
 
-	// let metadata = match path.metadata() {
-	// 	Ok(metadata) => metadata,
-	// 	Err(e) => {
-	// 		log::error!("metadata error: {}", e);
-	// 		return false;
-	// 	}
-	// };
+	let metadata = match path.metadata() {
+		Ok(metadata) => metadata,
+		Err(e) => {
+			log::error!("metadata error: {}", e);
+			return false;
+		}
+	};
 
-	// let permissions = metadata.permissions();
+	let permissions = metadata.permissions();
 
-	// permissions.mode() & 0o111 != 0
-	true
+	permissions.mode() & 0o111 != 0
 }
 
 #[cfg(windows)]
