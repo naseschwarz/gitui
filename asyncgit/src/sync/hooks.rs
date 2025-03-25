@@ -19,16 +19,20 @@ impl From<git2_hooks::HookResult> for HookResult {
 			| git2_hooks::HookResult::NoHookFound => Self::Ok,
 			git2_hooks::HookResult::RunNotSuccessful {
 				stdout,
-				mut stderr,
+				stderr,
 				..
 			} => {
 				const ANSI_CLEAR: &str = "\x1B[H\x1B[2J\x1B[3J";
 
-				if stderr == ANSI_CLEAR {
-					stderr.clear();
+				let mut combined = format!("{stdout}{stderr}");
+
+				if let Some(trimmed) =
+					combined.strip_suffix(ANSI_CLEAR)
+				{
+					combined.truncate(trimmed.len());
 				}
 
-				Self::NotOk(format!("{stdout}{stderr}"))
+				Self::NotOk(combined)
 			}
 		}
 	}
