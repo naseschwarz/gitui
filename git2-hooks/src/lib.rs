@@ -310,6 +310,39 @@ exit 0
 	}
 
 	#[test]
+	fn test_hook_with_missing_shebang() {
+		const TEXT: &str = "Hello, world!";
+
+		let (_td, repo) = repo_init();
+
+		let hook = b"echo \"$@\"\nexit 42";
+
+		create_hook(&repo, HOOK_PRE_COMMIT, hook);
+
+		let hook =
+			HookPaths::new(&repo, None, HOOK_PRE_COMMIT).unwrap();
+
+		assert!(hook.found());
+
+		let result = hook.run_hook(&[TEXT]).unwrap();
+
+		if let HookResult::RunNotSuccessful {
+			code,
+			stdout,
+			stderr,
+			hook: h,
+		} = result
+		{
+			assert_eq!(code, Some(42));
+			assert_eq!(stdout.as_str().trim_end(), TEXT);
+			assert!(stderr.is_empty());
+			assert_eq!(h, hook.hook);
+		} else {
+			panic!("run_hook should've failed");
+		}
+	}
+
+	#[test]
 	fn test_no_hook_found() {
 		let (_td, repo) = repo_init();
 
