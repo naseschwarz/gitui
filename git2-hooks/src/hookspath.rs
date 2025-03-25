@@ -109,24 +109,15 @@ impl HookPaths {
 		let hook = self.hook.clone();
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let run_command = |mut command: Command| {
-			command.current_dir(&self.pwd).with_no_window().output()
-		};
-
-		let output = if cfg!(windows) {
-			run_command(sh_command(&hook, args))
+		let mut command = if cfg!(windows) {
+			sh_command(&hook, args)
 		} else {
 			let mut command = Command::new(&hook);
 			command.args(args);
-			match run_command(command) {
-				Err(err) if err.raw_os_error() == Some(8) => {
-					// if error is ENOEXEC execute with sh
-					run_command(sh_command(&hook, args))
-				}
+			command
+		};
 
-				result => result,
-			}
-		}?;
+		let output = command.current_dir(&self.pwd).output()?;
 
 		if output.status.success() {
 			Ok(HookResult::Ok { hook })
@@ -160,6 +151,8 @@ fn sh_command(script: &Path, args: &[&str]) -> Command {
 
 		// Use -l to avoid "command not found"
 		command.arg("-l");
+
+		command.with_no_window();
 	}
 
 	command.arg(script).args(args);
@@ -192,20 +185,21 @@ pub fn sh_path() -> PathBuf {
 }
 
 #[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-	use std::os::unix::fs::PermissionsExt;
+const fn is_executable(path: &Path) -> bool {
+	// use std::os::unix::fs::PermissionsExt;
 
-	let metadata = match path.metadata() {
-		Ok(metadata) => metadata,
-		Err(e) => {
-			log::error!("metadata error: {}", e);
-			return false;
-		}
-	};
+	// let metadata = match path.metadata() {
+	// 	Ok(metadata) => metadata,
+	// 	Err(e) => {
+	// 		log::error!("metadata error: {}", e);
+	// 		return false;
+	// 	}
+	// };
 
-	let permissions = metadata.permissions();
+	// let permissions = metadata.permissions();
 
-	permissions.mode() & 0o111 != 0
+	// permissions.mode() & 0o111 != 0
+	true
 }
 
 #[cfg(windows)]
