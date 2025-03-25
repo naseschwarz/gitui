@@ -157,6 +157,7 @@ fn build_shell_script_execution_command(
 			"DUMMY_ENV_TO_FIX_WINDOWS_CMD_RUNS",
 			"FixPathHandlingOnWindows",
 		);
+
 		// Use -l to avoid "command not found"
 		command.arg("-l");
 	}
