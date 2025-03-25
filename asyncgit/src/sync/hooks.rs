@@ -22,14 +22,16 @@ impl From<git2_hooks::HookResult> for HookResult {
 				stderr,
 				..
 			} => {
-				const ANSI_CLEAR: &str = "\x1B[H\x1B[2J\x1B[3J";
-
 				let mut combined = format!("{stdout}{stderr}");
 
-				if let Some(trimmed) =
-					combined.strip_suffix(ANSI_CLEAR)
-				{
-					combined.truncate(trimmed.len());
+				if cfg!(windows) {
+					const ANSI_CLEAR: &str = "\x1B[H\x1B[2J\x1B[3J";
+
+					if let Some(trimmed) =
+						combined.strip_suffix(ANSI_CLEAR)
+					{
+						combined.truncate(trimmed.len());
+					}
 				}
 
 				Self::NotOk(combined)
