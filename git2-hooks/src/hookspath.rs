@@ -120,7 +120,7 @@ impl HookPaths {
 			command.args(args);
 			match run_command(command) {
 				Err(err) if err.raw_os_error() == Some(8) => {
-					// if execution failed with ENOEXEC execute with /bin/sh
+					// if error is ENOEXEC execute with sh
 					run_command(sh_command(&hook, args))
 				}
 
