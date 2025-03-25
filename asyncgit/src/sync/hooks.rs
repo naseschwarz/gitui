@@ -19,9 +19,17 @@ impl From<git2_hooks::HookResult> for HookResult {
 			| git2_hooks::HookResult::NoHookFound => Self::Ok,
 			git2_hooks::HookResult::RunNotSuccessful {
 				stdout,
-				stderr,
+				mut stderr,
 				..
-			} => Self::NotOk(format!("{stdout}{stderr}")),
+			} => {
+				const ANSI_CLEAR: &str = "\x1B[H\x1B[J";
+
+				if stderr == ANSI_CLEAR {
+					stderr.clear();
+				}
+
+				Self::NotOk(format!("{stdout}{stderr}"))
+			}
 		}
 	}
 }
