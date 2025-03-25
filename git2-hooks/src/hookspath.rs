@@ -109,21 +109,27 @@ impl HookPaths {
 		let hook = self.hook.clone();
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let mut command = if cfg!(windows) {
-			build_shell_script_execution_command(&hook, args)
-		} else {
-			eprintln!("linux");
-
-			let c = build_shell_script_execution_command(&hook, args);
-			//run_command(Command::new(&hook).args(args))
-			eprintln!("{:?}", c.get_args());
-			c
+		let run_command = |mut command: Command| {
+			command.current_dir(&self.pwd).with_no_window().output()
 		};
 
-		let output = command
-			.current_dir(&self.pwd)
-			.with_no_window()
-			.output()?;
+		let output = if cfg!(windows) {
+			let command =
+				build_shell_script_execution_command(&hook, args);
+			run_command(command)
+		} else {
+			let mut command = Command::new(&hook);
+			command.args(args);
+			match run_command(command) {
+				Err(err) if err.raw_os_error() == Some(8) => {
+					run_command(build_shell_script_execution_command(
+						&hook, args,
+					))
+				}
+
+				result => result,
+			}
+		}?;
 
 		if output.status.success() {
 			Ok(HookResult::Ok { hook })
@@ -161,10 +167,8 @@ fn build_shell_script_execution_command(
 		// Use -l to avoid "command not found"
 		command.arg("-l");
 	}
-	command
-		.arg(script) // the script to execute
-		.arg(script) // argv[0]
-		.args(args); // argv[1..]
+
+	command.arg(script).args(args);
 
 	command
 }
