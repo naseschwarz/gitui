@@ -133,7 +133,7 @@ impl HookPaths {
 
 				os_str
 			};
-			run_command(sh_command().arg(command))
+			run_command(sh_command().arg("-c").arg(command))
 		} else {
 			// execute hook directly
 			match run_command(&mut Command::new(&hook)) {
