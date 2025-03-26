@@ -442,9 +442,12 @@ exit 1
 			unreachable!()
 		};
 
-		assert!(stdout
-			.lines()
-			.any(|line| line.starts_with("export PATH")));
+		assert!(
+			stdout
+				.lines()
+				.any(|line| line.starts_with("export PATH")),
+			"{stdout:?}"
+		);
 	}
 
 	#[test]
@@ -510,7 +513,7 @@ sys.exit(0)
 
 		create_hook(&repo, HOOK_PRE_COMMIT, hook);
 		let res = hooks_pre_commit(&repo, None).unwrap();
-		assert!(res.is_ok());
+		assert!(res.is_ok(), "{res:?}");
 	}
 
 	#[test]
