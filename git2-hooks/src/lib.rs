@@ -428,11 +428,7 @@ exit 1
 
 	#[test]
 	fn test_env_containing_path() {
-		const PATH_EXPORT: &str = if cfg!(windows) {
-			"declare -x PATH="
-		} else {
-			"export PATH"
-		};
+		const PATH_EXPORT: &str = "export PATH";
 
 		let (_td, repo) = repo_init();
 
