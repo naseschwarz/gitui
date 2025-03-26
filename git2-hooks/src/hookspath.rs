@@ -124,7 +124,15 @@ impl HookPaths {
 				let mut os_str = std::ffi::OsString::new();
 				os_str.push("'");
 				if let Some(hook) = hook.to_str() {
-					os_str.push(hook.replace('\'', "\\'"));
+					// SEE: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02_02
+					// Enclosing characters in single-quotes ( '' ) shall preserve the literal value of each character within the single-quotes.
+					// A single-quote cannot occur within single-quotes.
+					const REPLACEMENT: &str = concat!(
+						"'",   // closing single-quote
+						"\\'", // one escaped single-quote (outside of single-quotes)
+						"'",   // new single-quote
+					);
+					os_str.push(hook.replace('\'', REPLACEMENT));
 				} else {
 					os_str.push(hook.as_os_str()); // TODO: this doesn't work if `hook` contains single-quotes
 				}

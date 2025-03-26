@@ -81,7 +81,7 @@ mod tests {
 	use crate::sync::tests::repo_init_with_prefix;
 
 	fn repo_init() -> Result<(TempDir, Repository)> {
-		repo_init_with_prefix("gitui $#  ")
+		repo_init_with_prefix("gitui $# ' ")
 	}
 
 	#[test]
