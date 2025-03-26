@@ -326,27 +326,22 @@ exit 0
 
 		let result = hook.run_hook(&[TEXT]).unwrap();
 
-		if let HookResult::RunNotSuccessful {
+		let HookResult::RunNotSuccessful {
 			code,
 			stdout,
 			stderr,
 			hook: h,
 		} = result
-		{
-			assert_eq!(code, Some(42));
-			assert_eq!(h, hook.hook);
-			assert_eq!(
-				stdout.as_str().trim_ascii_end(),
-				TEXT,
-				"{:?} != {TEXT:?}  | {:?} != {:?}",
-				stdout.as_str().trim_ascii_end(),
-				stdout.as_str().trim_ascii_end().as_bytes(),
-				TEXT.as_bytes()
-			);
-			assert!(stderr.is_empty());
-		} else {
-			panic!("run_hook should've failed");
-		}
+		else {
+			unreachable!("run_hook should've failed");
+		};
+
+		let stdout = stdout.as_str().trim_ascii_end();
+
+		assert_eq!(code, Some(42));
+		assert_eq!(h, hook.hook);
+		assert_eq!(stdout, TEXT, "{:?} != {TEXT:?}", stdout);
+		assert!(stderr.is_empty());
 	}
 
 	#[test]
