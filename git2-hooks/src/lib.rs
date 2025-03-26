@@ -428,6 +428,12 @@ exit 1
 
 	#[test]
 	fn test_env_containing_path() {
+		const PATH_EXPORT: &str = if cfg!(windows) {
+			"declare -x PATH="
+		} else {
+			"export PATH"
+		};
+
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
@@ -445,8 +451,8 @@ exit 1
 		assert!(
 			stdout
 				.lines()
-				.any(|line| line.starts_with("export PATH")),
-			"{stdout:?}"
+				.any(|line| line.starts_with(PATH_EXPORT)),
+			"Could not find line starting with {PATH_EXPORT:?} in: {stdout:?}"
 		);
 	}
 
