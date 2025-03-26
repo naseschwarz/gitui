@@ -335,7 +335,14 @@ exit 0
 		{
 			assert_eq!(code, Some(42));
 			assert_eq!(h, hook.hook);
-			assert_eq!(stdout.as_str().trim_ascii_end(), TEXT);
+			assert_eq!(
+				stdout.as_str().trim_ascii_end(),
+				TEXT,
+				"{:?} != {TEXT:?}  | {:?} != {:?}",
+				stdout.as_str().trim_ascii_end(),
+				stdout.as_str().trim_ascii_end().as_bytes(),
+				TEXT.as_bytes()
+			);
 			assert!(stderr.is_empty());
 		} else {
 			panic!("run_hook should've failed");
