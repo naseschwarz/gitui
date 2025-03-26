@@ -110,7 +110,7 @@ impl HookPaths {
 		let hook = self.hook.clone();
 		log::trace!("run hook '{:?}' in '{:?}'", hook, self.pwd);
 
-		let run_command = |mut command: Command| {
+		let run_command = |command: &mut Command| {
 			command
 				.args(args)
 				.current_dir(&self.pwd)
@@ -119,13 +119,26 @@ impl HookPaths {
 		};
 
 		let output = if cfg!(windows) {
-			// execute hook with sh
-			run_command(sh_command(&hook))
+			// execute hook in shell
+			let command = {
+				let mut os_str = std::ffi::OsString::new();
+				os_str.push("'");
+				if let Some(hook) = hook.to_str() {
+					os_str.push(hook.replace('\'', "\\'"));
+				} else {
+					os_str.push(hook.as_os_str()); // TODO: this doesn't work if `hook` contains single-quotes
+				}
+				os_str.push("'");
+				os_str.push(" \"$@\"");
+
+				os_str
+			};
+			run_command(sh_command().arg(command))
 		} else {
 			// execute hook directly
-			match run_command(Command::new(&hook)) {
+			match run_command(&mut Command::new(&hook)) {
 				Err(err) if err.raw_os_error() == Some(ENOEXEC) => {
-					run_command(sh_command(&hook))
+					run_command(sh_command().arg(&hook))
 				}
 				result => result,
 			}
@@ -161,7 +174,7 @@ impl HookPaths {
 	}
 }
 
-fn sh_command(script: &Path) -> Command {
+fn sh_command() -> Command {
 	let mut command = Command::new(sh_path());
 
 	if cfg!(windows) {
@@ -176,8 +189,6 @@ fn sh_command(script: &Path) -> Command {
 		// Use -l to avoid "command not found"
 		command.arg("-l");
 	}
-
-	command.arg(script);
 
 	command
 }
