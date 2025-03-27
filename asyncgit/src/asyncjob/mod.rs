@@ -39,7 +39,6 @@ impl<T: Copy + Send, P: Clone + Send + Sync + PartialEq>
 		})
 	}
 
-	///
 //	pub fn progress(&self) -> P {
 //		self.progress.read().cl
 //	}

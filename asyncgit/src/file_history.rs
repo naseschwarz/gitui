@@ -189,7 +189,7 @@ impl AsyncFileHistoryJob {
 		let start = Instant::now();
 
 		let file_name = Arc::new(RwLock::new(file_path));
-		let result = params.
+		let result = Arc::new(Mutex::new(Vec::<FileHistoryEntry>::new()));
 
 		let filter = Self::file_history_filter(
 			file_name,
