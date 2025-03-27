@@ -167,6 +167,10 @@ impl SyntaxText {
 		})
 	}
 
+	// Clippy wants this to be const in nightly.
+	// This can't really be const, as deref into Path is not const.
+	// Disable clippy warning to build on nightly.
+	#[allow(clippy::missing_const_for_fn)]
 	///
 	pub fn path(&self) -> &Path {
 		&self.path

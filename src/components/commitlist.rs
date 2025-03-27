@@ -114,6 +114,9 @@ impl CommitList {
 		self.marked.len()
 	}
 
+	// Clippy wants this to be const in nightly, which is not possible.
+	// Disable check to make clippy pass:
+	#[allow(clippy::missing_const_for_fn)]
 	///
 	pub fn marked(&self) -> &[(usize, CommitId)] {
 		&self.marked
