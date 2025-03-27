@@ -3,7 +3,7 @@ use crate::{
 	components::{
 		event_pump, visibility_blocking, CommandBlocking,
 		CommandInfo, Component, DiffComponent, DrawableComponent,
-		EventState, LogEntry, ScrollType,
+		EventState, ScrollType, utils::logitems::LogEntry
 	},
 	keys::{key_match, SharedKeyConfig},
 	options::SharedOptions,
