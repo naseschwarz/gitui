@@ -40,9 +40,9 @@ impl<T: Copy + Send, P: Clone + Send + Sync + PartialEq>
 	}
 
 	///
-	pub fn progress(&self) -> P {
-		self.progress.read().cl
-	}
+//	pub fn progress(&self) -> P {
+//		self.progress.read().cl
+//	}
 }
 
 /// trait that defines an async task we can run on a threadpool
