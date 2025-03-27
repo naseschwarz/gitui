@@ -8,7 +8,7 @@ use crate::{
 		commit_files::{
 			commit_contains_file, commit_detect_file_rename,
 		},
-		CommitId, CommitInfo, RepoPath,
+		CommitId, CommitInfo, LogWalker, RepoPath,
 		SharedCommitFilterFn,
 	},
 	AsyncGitNotification,
