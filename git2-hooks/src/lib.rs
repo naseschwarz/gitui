@@ -282,7 +282,7 @@ exit 0
 
 		let hook = br#"#!/bin/sh
 COMMIT_MSG="$(cat "$1")"
-printf "$COMMIT_MSG" | sed 's/sth/shell_command/g' >"$1"
+printf "$COMMIT_MSG" | sed 's/sth/shell_command/g' > "$1"
 exit 0
         "#;
 
@@ -307,6 +307,41 @@ exit 0
 		create_hook(&repo, HOOK_PRE_COMMIT, hook);
 		let res = hooks_pre_commit(&repo, None).unwrap();
 		assert!(res.is_ok());
+	}
+
+	#[test]
+	fn test_hook_with_missing_shebang() {
+		const TEXT: &str = "Hello, world!";
+
+		let (_td, repo) = repo_init();
+
+		let hook = b"echo \"$@\"\nexit 42";
+
+		create_hook(&repo, HOOK_PRE_COMMIT, hook);
+
+		let hook =
+			HookPaths::new(&repo, None, HOOK_PRE_COMMIT).unwrap();
+
+		assert!(hook.found());
+
+		let result = hook.run_hook(&[TEXT]).unwrap();
+
+		let HookResult::RunNotSuccessful {
+			code,
+			stdout,
+			stderr,
+			hook: h,
+		} = result
+		else {
+			unreachable!("run_hook should've failed");
+		};
+
+		let stdout = stdout.as_str().trim_ascii_end();
+
+		assert_eq!(code, Some(42));
+		assert_eq!(h, hook.hook);
+		assert_eq!(stdout, TEXT, "{:?} != {TEXT:?}", stdout);
+		assert!(stderr.is_empty());
 	}
 
 	#[test]
@@ -388,6 +423,8 @@ exit 1
 
 	#[test]
 	fn test_env_containing_path() {
+		const PATH_EXPORT: &str = "export PATH";
+
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
@@ -402,9 +439,12 @@ exit 1
 			unreachable!()
 		};
 
-		assert!(stdout
-			.lines()
-			.any(|line| line.starts_with("export PATH")));
+		assert!(
+			stdout
+				.lines()
+				.any(|line| line.starts_with(PATH_EXPORT)),
+			"Could not find line starting with {PATH_EXPORT:?} in: {stdout:?}"
+		);
 	}
 
 	#[test]
@@ -470,7 +510,7 @@ sys.exit(0)
 
 		create_hook(&repo, HOOK_PRE_COMMIT, hook);
 		let res = hooks_pre_commit(&repo, None).unwrap();
-		assert!(res.is_ok());
+		assert!(res.is_ok(), "{res:?}");
 	}
 
 	#[test]
@@ -499,9 +539,9 @@ sys.exit(1)
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
-echo 'msg' > $1
-echo 'rejected'
-exit 1
+	echo 'msg' > \"$1\"
+	echo 'rejected'
+	exit 1
         ";
 
 		create_hook(&repo, HOOK_COMMIT_MSG, hook);
@@ -525,7 +565,7 @@ exit 1
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
-echo 'msg' > $1
+echo 'msg' > \"$1\"
 exit 0
         ";
 
@@ -565,7 +605,7 @@ exit 0
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
-echo msg:$2 > $1
+echo \"msg:$2\" > \"$1\"
 exit 0
         ";
 
@@ -589,7 +629,7 @@ exit 0
 		let (_td, repo) = repo_init();
 
 		let hook = b"#!/bin/sh
-echo $2,$3 > $1
+echo \"$2,$3\" > \"$1\"
 echo 'rejected'
 exit 2
         ";
