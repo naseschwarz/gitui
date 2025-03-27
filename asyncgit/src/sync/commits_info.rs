@@ -131,7 +131,6 @@ pub fn get_commit_info(
 	scope_time!("get_commit_info");
 
 	let repo = repo(repo_path)?;
-	let mailmap = repo.mailmap()?;
 
 	get_commit_info_repo(&repo, commit_id)
 }
@@ -142,6 +141,7 @@ pub(crate) fn get_commit_info_repo(
 	commit_id: &CommitId,
 ) -> Result<CommitInfo> {
 	let commit = repo.find_commit((*commit_id).into())?;
+	let mailmap = repo.mailmap()?;
 	let author = get_author_of_commit(&commit, &mailmap);
 
 	Ok(CommitInfo {
