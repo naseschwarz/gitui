@@ -122,6 +122,7 @@ impl AsyncDiff {
 		self.pending.fetch_add(1, Ordering::Relaxed);
 
 		rayon_core::spawn(move || {
+			panic!();
 			let notify = Self::get_diff_helper(
 				&repo,
 				params,
