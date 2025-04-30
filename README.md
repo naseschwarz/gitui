@@ -220,7 +220,7 @@ see [NIGHTLIES.md](./NIGHTLIES.md)
 
 ### Requirements
 
-- Minimum supported `rust`/`cargo` version: `1.70`
+- Minimum supported `rust`/`cargo` version: `1.81`
   - See [Install Rust](https://www.rust-lang.org/tools/install)
 
 - To build openssl dependency (see https://docs.rs/openssl/latest/openssl/)
@@ -250,9 +250,9 @@ see [FAQs page](./FAQ.md)
 To run with logging enabled run `gitui -l`.
 
 This will log to:
-
+- With `XDG_CACHE_HOME` set: `$XDG_CACHE_HOME/gitui/gitui.log`
+or default to
 - macOS: `$HOME/Library/Caches/gitui/gitui.log`
-- Linux using `XDG`: `$XDG_CACHE_HOME/gitui/gitui.log`
 - Linux: `$HOME/.cache/gitui/gitui.log`
 - Windows: `%LOCALAPPDATA%/gitui/gitui.log`
 
